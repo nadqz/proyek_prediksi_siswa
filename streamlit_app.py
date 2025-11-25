@@ -71,48 +71,65 @@ DL_2D_MODELS = ["DNN"]     # Model Dense yang butuh input 2D (seperti ML)
 
 
 def preprocess_input(input_data, scaler):
-    # ... (Fungsi ini sudah benar dan mengembalikan array X_scaled 2D (1, 5))
+    """Mengubah input user menjadi DataFrame (belum di-scale)."""
+    
+    # 1. Ubah ke DataFrame (Ini yang akan digunakan ML)
     input_df = pd.DataFrame([input_data], columns=FEATURES)
+    
+    # 2. Scaling (Ini yang akan digunakan DL)
     X_scaled = scaler.transform(input_df)
-    return X_scaled
-
-def predict_score(model_name, model, X_scaled):
-    """Melakukan prediksi dengan menyesuaikan reshape yang tepat untuk setiap model."""
-
-    # 1. Tentukan bentuk akhir X_final
     
-    # --- MODEL DL (3D INPUTS) ---
-    if model_name in DL_3D_STANDARD: 
-        # Untuk LSTM: (samples, timesteps=1, features=5)
-        X_final = X_scaled.reshape((X_scaled.shape[0], 1, X_scaled.shape[1]))
+    # Mengembalikan keduanya untuk fleksibilitas: 
+    # DataFrame untuk ML, Array ter-scale untuk DL.
+    return input_df, X_scaled
+
+# Ganti panggilan fungsi di bawah ini:
+# final_prediction = predict_score(selected_model_name, MODELS[selected_model_name], X_scaled)
+
+# Ganti menjadi:
+# final_prediction = predict_score(selected_model_name, MODELS[selected_model_name], input_df, X_scaled)
+# (Koreksi ini akan dilakukan di bagian 4 kode Streamlit)
+
+def predict_score(model_name, model, input_df, X_scaled):
+    """
+    Melakukan prediksi dengan menyesuaikan input: 
+    - DL: X_scaled (array) dengan reshape 3D
+    - ML/DNN: input_df (DataFrame) atau X_scaled (array 2D)
+    """
+
+    # 1. Tentukan input akhir X_final
+    if model_name in DL_PATHS:
+        # Logika 3D untuk DL (sudah fix untuk LSTM/CNN/DNN)
         
-    elif model_name in DL_3D_CNN:
-        # Untuk CNN: (samples, sequence_length=5, feature_depth=1)
-        X_final = X_scaled.reshape((X_scaled.shape[0], X_scaled.shape[1], 1))
+        if model_name == "LSTM": 
+            X_final = X_scaled.reshape((X_scaled.shape[0], 1, X_scaled.shape[1]))
+        elif model_name == "CNN":
+            X_final = X_scaled.reshape((X_scaled.shape[0], X_scaled.shape[1], 1))
+        else: # DNN (menggunakan array 2D jika model dilatih tanpa Flatten, atau 3D jika ada Flatten)
+              # Karena model Anda adalah DNN lama, kita biarkan 2D saja
+            X_final = X_scaled
         
-    # --- MODEL 2D INPUTS ---
     else: 
-        # Untuk DNN, RF, DT, LR (semua membutuhkan 2D input (1, 5))
-        X_final = X_scaled
+        # Model ML (RF, DT, LR) - GUNAKAN DATAFRAME AGAR LEBIH ROBUST
+        # Ini mengatasi error input/versi di scikit-learn
+        X_final = input_df 
     
-    # Lakukan Prediksi
-    # Tambahkan try-except yang lebih aman (seperti yang disarankan sebelumnya)
+    # 2. Lakukan Prediksi dengan Error Catching yang Informatif
     try:
-        prediction = model.predict(X_final, verbose=0)
+        # Hapus verbose=0 dari ML models (prediction = model.predict(X_final))
+        prediction = model.predict(X_final) 
     except Exception as e:
-        # Mencetak pesan error yang jelas untuk diagnosa
+        # Error Catching yang jelas
         st.error(f"Prediction Failed for {model_name}.")
-        st.error(f"Penyebab: {type(e).__name__}: Cek kembali input shape.")
+        st.error(f"Penyebab: {type(e).__name__} - {e}")
+        st.info("Kemungkinan besar model ini dilatih dengan versi scikit-learn yang berbeda.")
         st.stop()
     
-    # Ambil nilai prediksi pertama dan konversi ke float
+    # 3. Ambil nilai prediksi
     if model_name in DL_PATHS:
-        # Output DL (biasanya [[nilai]])
         return float(prediction[0][0]) 
     else:
-        # Output ML (biasanya [nilai])
         return float(prediction[0])
-
 
 # ==============================================================================
 # 3. STRUKTUR ANTARMUKA STREAMLIT
@@ -175,11 +192,11 @@ if st.button(f"Prediksi Nilai dengan {selected_model_name}"):
     if selected_model_name not in MODELS:
         st.error("Model yang dipilih tidak dapat dimuat. Cek file Anda.")
     else:
-        # Preprocessing input
-        X_scaled = preprocess_input(input_data, SCALER)
+        # Panggil fungsi preprocessing yang baru
+        input_df, X_scaled = preprocess_input(input_data, SCALER)
         
-        # Prediksi
-        final_prediction = predict_score(selected_model_name, MODELS[selected_model_name], X_scaled)
+        # Panggil fungsi prediksi yang baru
+        final_prediction = predict_score(selected_model_name, MODELS[selected_model_name], input_df, X_scaled)
         
         # Tampilkan Hasil
         st.success("✅ Prediksi Selesai!")
