@@ -78,11 +78,19 @@ def preprocess_input(input_data, scaler):
 def predict_score(model_name, model, X_scaled):
     """Melakukan prediksi, menyesuaikan reshape jika model adalah DL (LSTM/CNN/DNN)."""
     
-    # Cek apakah model adalah Deep Learning (membutuhkan input 3D)
-    if model_name in DL_PATHS:
-        # Reshape ke format 3D: (samples, timesteps=1, features)
+    # Cek apakah model adalah Deep Learning
+    if model_name in ["LSTM", "DNN"]:
+        # Reshape untuk LSTM/DNN: (samples, timesteps=1, features=5)
+        # Bentuk: (1, 1, 5)
         X_final = X_scaled.reshape((X_scaled.shape[0], 1, X_scaled.shape[1]))
-    else:
+        
+    elif model_name == "CNN":
+        # Reshape KHUSUS untuk CNN: (samples, sequence_length=5, feature_depth=1)
+        # CNN memperlakukan 5 fitur sebagai urutan, membutuhkan dimensi 1 di akhir.
+        # Bentuk: (1, 5, 1)
+        X_final = X_scaled.reshape((X_scaled.shape[0], X_scaled.shape[1], 1))
+        
+    else: # Model ML (RF, DT, LR)
         # Model ML hanya membutuhkan 2D
         X_final = X_scaled
     
@@ -91,10 +99,8 @@ def predict_score(model_name, model, X_scaled):
     
     # Ambil nilai prediksi pertama dan konversi ke float (dari array)
     if model_name in DL_PATHS:
-        # Output DL seringkali array 1x1
         return float(prediction[0][0]) 
     else:
-        # Output ML
         return float(prediction[0])
 
 
