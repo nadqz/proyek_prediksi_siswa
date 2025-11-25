@@ -27,6 +27,10 @@ DL_PATHS = {
     "DNN": 'DL_MODELS/dnn_model.keras'
 }
 
+# Variabel Global untuk prediktor (Digunakan di fungsi prediksi)
+DL_3D_STANDARD = ["LSTM"] # Hanya LSTM yang butuh (1, 1, F)
+DL_3D_CNN = ["CNN"] # Hanya CNN yang butuh (1, F, 1)
+
 # Fungsi untuk memuat semua aset (Hanya dijalankan sekali)
 @st.cache_resource
 def load_all_assets():
@@ -39,19 +43,18 @@ def load_all_assets():
         st.error(f"Error: Scaler file not found at {SCALER_PATH}. Check folder structure.")
         st.stop()
     
-    # Load ML Models
-    for name, path in ML_PATHS.items():
+    # Load Models
+    all_paths = {**ML_PATHS, **DL_PATHS}
+    for name, path in all_paths.items():
         try:
-            models[name] = joblib.load(path)
+            if name in DL_PATHS:
+                models[name] = load_model(path)
+            else:
+                models[name] = joblib.load(path)
         except FileNotFoundError:
-            st.warning(f"ML Model {name} not found at {path}. Skipping.")
-            
-    # Load DL Models
-    for name, path in DL_PATHS.items():
-        try:
-            models[name] = load_model(path)
-        except FileNotFoundError:
-            st.warning(f"DL Model {name} not found at {path}. Skipping.")
+            st.warning(f"Model {name} not found at {path}. Skipping.")
+        except Exception as e:
+            st.warning(f"Error loading {name}: {e}. Skipping.")
 
     return models, scaler
 
@@ -64,7 +67,7 @@ MODELS, SCALER = load_all_assets()
 # ==============================================================================
 
 def preprocess_input(input_data, scaler):
-    """Mengubah input user (2D) menjadi format yang siap diprediksi (Scaled dan Reshaped)."""
+    """Mengubah input user menjadi array 2D yang sudah di-scale."""
     
     # 1. Ubah ke DataFrame
     input_df = pd.DataFrame([input_data], columns=FEATURES)
@@ -72,41 +75,38 @@ def preprocess_input(input_data, scaler):
     # 2. Scaling (Wajib untuk semua model)
     X_scaled = scaler.transform(input_df)
     
-    # 3. Reshape untuk DL (akan disesuaikan di fungsi prediksi)
     return X_scaled
 
-# Tambahkan path model lain di sini jika diperlukan, tapi fokus pada DNN
-DL_MODELS_3D_STANDARD = ["LSTM", "DNN"] # <--- HANYA LSTM yang butuh 3D (1, 1, F)
-
 def predict_score(model_name, model, X_scaled):
-    """Melakukan prediksi, menyesuaikan reshape jika model adalah DL (LSTM/CNN/DNN)."""
+    """Melakukan prediksi, menyesuaikan reshape untuk DL (LSTM/CNN) atau menggunakan 2D (DNN/ML)."""
 
-    # Cek apakah model membutuhkan input 3D (Sequential)
-    if model_name in DL_3D_MODELS:
-        # Reshape ke format 3D: (samples, timesteps, features)
-        # Jika Anda menggunakan 14 fitur, bentuknya adalah: (1, 1, 14)
-        X_final = X_scaled.reshape((X_scaled.shape[0], 1, X_scaled.shape[1]))
-    
     # 1. Tentukan bentuk akhir X_final
-    if model_name == "LSTM": 
+    if model_name in DL_3D_STANDARD: 
         # Untuk LSTM (tabular), bentuk: (samples, timesteps=1, features=5)
         X_final = X_scaled.reshape((X_scaled.shape[0], 1, X_scaled.shape[1]))
         
-    elif model_name == "CNN":
+    elif model_name in DL_3D_CNN:
         # Untuk CNN (tabular), bentuk: (samples, sequence_length=5, feature_depth=1)
         X_final = X_scaled.reshape((X_scaled.shape[0], X_scaled.shape[1], 1))
         
-    else: # Model ML (RF, DT, LR)
-        # Model ML hanya membutuhkan 2D
+    else: 
+        # Untuk DNN dan semua Model ML (RF, DT, LR) - menggunakan 2D input
         X_final = X_scaled
     
     # Lakukan Prediksi
-    prediction = model.predict(X_final)
+    # Tambahkan try-except di sini untuk menangkap error pada model.predict yang masih mungkin terjadi
+    try:
+        prediction = model.predict(X_final, verbose=0)
+    except Exception as e:
+        st.error(f"Prediction Failed for {model_name}. Cek input shape: {X_final.shape}")
+        st.stop()
     
-    # Ambil nilai prediksi pertama dan konversi ke float (dari array)
+    # Ambil nilai prediksi pertama dan konversi ke float
     if model_name in DL_PATHS:
+        # DL output (biasanya [[nilai]])
         return float(prediction[0][0]) 
     else:
+        # ML output (biasanya [nilai])
         return float(prediction[0])
 
 
@@ -129,29 +129,21 @@ model_options = list(MODELS.keys())
 selected_model_name = st.sidebar.selectbox(
     "Algoritma yang Digunakan:", 
     model_options,
-    index=model_options.index("Random Forest") if "Random Forest" in model_options else 0
+    index=model_options.index("Random Forest") if "Random Forest" in model_options and "Random Forest" in model_options else 0
 )
 
-# Input Fitur (5 Fitur Numerik)
-st.header("Input Data Kebiasaan Siswa")
+# --- UI HANYA 5 FITUR UNTUK KONSISTENSI DENGAN MODEL LAMA ---
+st.header("Input Data Kebiasaan Siswa (5 Fitur)")
 col1, col2 = st.columns(2)
 
 with col1:
-    study_hours = st.slider("1. Jam Belajar per Hari", 
-                            min_value=0.0, max_value=8.0, value=4.0, step=0.1)
-    
-    attendance = st.slider("2. Persentase Kehadiran (%)", 
-                           min_value=50.0, max_value=100.0, value=85.0, step=0.1)
-    
-    sleep_hours = st.slider("3. Jam Tidur per Hari", 
-                            min_value=4.0, max_value=10.0, value=7.0, step=0.1)
+    study_hours = st.slider("1. Jam Belajar per Hari", min_value=0.0, max_value=8.0, value=4.0, step=0.1)
+    attendance = st.slider("2. Persentase Kehadiran (%)", min_value=50.0, max_value=100.0, value=85.0, step=0.1)
+    sleep_hours = st.slider("3. Jam Tidur per Hari", min_value=4.0, max_value=10.0, value=7.0, step=0.1)
 
 with col2:
-    exercise_freq = st.slider("4. Frekuensi Olahraga per Minggu", 
-                              min_value=0, max_value=7, value=3)
-    
-    mental_health = st.slider("5. Rating Kesehatan Mental (1-10)", 
-                              min_value=1, max_value=10, value=6)
+    exercise_freq = st.slider("4. Frekuensi Olahraga per Minggu", min_value=0, max_value=7, value=3)
+    mental_health = st.slider("5. Rating Kesehatan Mental (1-10)", min_value=1, max_value=10, value=6)
 
 # Kumpulkan data input
 input_data = {
