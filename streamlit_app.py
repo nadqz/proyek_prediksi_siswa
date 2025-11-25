@@ -75,8 +75,17 @@ def preprocess_input(input_data, scaler):
     # 3. Reshape untuk DL (akan disesuaikan di fungsi prediksi)
     return X_scaled
 
+# Tambahkan path model lain di sini jika diperlukan, tapi fokus pada DNN
+DL_3D_MODELS = ["LSTM", "CNN"] # Hanya model sequential yang butuh reshape 3D
+
 def predict_score(model_name, model, X_scaled):
     """Melakukan prediksi, menyesuaikan reshape jika model adalah DL (LSTM/CNN/DNN)."""
+
+    # Cek apakah model membutuhkan input 3D (Sequential)
+    if model_name in DL_3D_MODELS:
+        # Reshape ke format 3D: (samples, timesteps, features)
+        # Jika Anda menggunakan 14 fitur, bentuknya adalah: (1, 1, 14)
+        X_final = X_scaled.reshape((X_scaled.shape[0], 1, X_scaled.shape[1]))
     
     # Cek apakah model adalah Deep Learning
     if model_name in ["LSTM", "DNN"]:
