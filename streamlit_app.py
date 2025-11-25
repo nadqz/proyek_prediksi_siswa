@@ -76,7 +76,7 @@ def preprocess_input(input_data, scaler):
     return X_scaled
 
 # Tambahkan path model lain di sini jika diperlukan, tapi fokus pada DNN
-DL_3D_MODELS = ["LSTM", "CNN"] # Hanya model sequential yang butuh reshape 3D
+DL_MODELS_3D_STANDARD = ["LSTM", "DNN"] # <--- HANYA LSTM yang butuh 3D (1, 1, F)
 
 def predict_score(model_name, model, X_scaled):
     """Melakukan prediksi, menyesuaikan reshape jika model adalah DL (LSTM/CNN/DNN)."""
@@ -87,16 +87,13 @@ def predict_score(model_name, model, X_scaled):
         # Jika Anda menggunakan 14 fitur, bentuknya adalah: (1, 1, 14)
         X_final = X_scaled.reshape((X_scaled.shape[0], 1, X_scaled.shape[1]))
     
-    # Cek apakah model adalah Deep Learning
-    if model_name in ["LSTM", "DNN"]:
-        # Reshape untuk LSTM/DNN: (samples, timesteps=1, features=5)
-        # Bentuk: (1, 1, 5)
+    # 1. Tentukan bentuk akhir X_final
+    if model_name == "LSTM": 
+        # Untuk LSTM (tabular), bentuk: (samples, timesteps=1, features=5)
         X_final = X_scaled.reshape((X_scaled.shape[0], 1, X_scaled.shape[1]))
         
     elif model_name == "CNN":
-        # Reshape KHUSUS untuk CNN: (samples, sequence_length=5, feature_depth=1)
-        # CNN memperlakukan 5 fitur sebagai urutan, membutuhkan dimensi 1 di akhir.
-        # Bentuk: (1, 5, 1)
+        # Untuk CNN (tabular), bentuk: (samples, sequence_length=5, feature_depth=1)
         X_final = X_scaled.reshape((X_scaled.shape[0], X_scaled.shape[1], 1))
         
     else: # Model ML (RF, DT, LR)
