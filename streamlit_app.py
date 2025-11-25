@@ -60,41 +60,57 @@ MODELS, SCALER = load_all_assets()
 
 
 # ==============================================================================
-# 2. FUNGSI PREPROCESSING DAN PREDIKSI
+# 2. FUNGSI PREPROCESSING DAN PREDIKSI (Koreksi Total)
 # ==============================================================================
 
+# Definisikan model berdasarkan kebutuhan input SHAPE
+# Asumsi: DNN Anda tidak memiliki lapisan Flatten dan membutuhkan input 2D.
+DL_3D_STANDARD = ["LSTM"]  # Model Sequential dengan timesteps=1
+DL_3D_CNN = ["CNN"]        # Model Conv1D yang butuh (samples, features, 1)
+DL_2D_MODELS = ["DNN"]     # Model Dense yang butuh input 2D (seperti ML)
+
+
 def preprocess_input(input_data, scaler):
-    """Mengubah input user (2D) menjadi format yang siap diprediksi (Scaled dan Reshaped)."""
-    
-    # 1. Ubah ke DataFrame
+    # ... (Fungsi ini sudah benar dan mengembalikan array X_scaled 2D (1, 5))
     input_df = pd.DataFrame([input_data], columns=FEATURES)
-    
-    # 2. Scaling (Wajib untuk semua model)
     X_scaled = scaler.transform(input_df)
-    
-    # 3. Reshape untuk DL (akan disesuaikan di fungsi prediksi)
     return X_scaled
 
 def predict_score(model_name, model, X_scaled):
-    """Melakukan prediksi, menyesuaikan reshape jika model adalah DL (LSTM/CNN/DNN)."""
+    """Melakukan prediksi dengan menyesuaikan reshape yang tepat untuk setiap model."""
+
+    # 1. Tentukan bentuk akhir X_final
     
-    # Cek apakah model adalah Deep Learning (membutuhkan input 3D)
-    if model_name in DL_PATHS:
-        # Reshape ke format 3D: (samples, timesteps=1, features)
+    # --- MODEL DL (3D INPUTS) ---
+    if model_name in DL_3D_STANDARD: 
+        # Untuk LSTM: (samples, timesteps=1, features=5)
         X_final = X_scaled.reshape((X_scaled.shape[0], 1, X_scaled.shape[1]))
-    else:
-        # Model ML hanya membutuhkan 2D
+        
+    elif model_name in DL_3D_CNN:
+        # Untuk CNN: (samples, sequence_length=5, feature_depth=1)
+        X_final = X_scaled.reshape((X_scaled.shape[0], X_scaled.shape[1], 1))
+        
+    # --- MODEL 2D INPUTS ---
+    else: 
+        # Untuk DNN, RF, DT, LR (semua membutuhkan 2D input (1, 5))
         X_final = X_scaled
     
     # Lakukan Prediksi
-    prediction = model.predict(X_final)
+    # Tambahkan try-except yang lebih aman (seperti yang disarankan sebelumnya)
+    try:
+        prediction = model.predict(X_final, verbose=0)
+    except Exception as e:
+        # Mencetak pesan error yang jelas untuk diagnosa
+        st.error(f"Prediction Failed for {model_name}.")
+        st.error(f"Penyebab: {type(e).__name__}: Cek kembali input shape.")
+        st.stop()
     
-    # Ambil nilai prediksi pertama dan konversi ke float (dari array)
+    # Ambil nilai prediksi pertama dan konversi ke float
     if model_name in DL_PATHS:
-        # Output DL seringkali array 1x1
+        # Output DL (biasanya [[nilai]])
         return float(prediction[0][0]) 
     else:
-        # Output ML
+        # Output ML (biasanya [nilai])
         return float(prediction[0])
 
 
