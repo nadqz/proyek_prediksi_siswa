@@ -14,11 +14,12 @@ FEATURES_USED = [
     "sleep_hours", "exercise_frequency"
 ]
 
-# Path file dan Konfigurasi
+# Path files dan Konfigurasi
 ML_PATHS = {
-    "Random Forest": 'ML_MODELS/random_forest_model.pkl',
-    "Decision Tree": 'ML_MODELS/decision_tree_model.pkl',
-    "Linear Regression": 'ML_MODELS/linear_regression_model.pkl'
+    # PATH DIGANTI KE NAMA FILE PIPELINE BARU
+    "Random Forest": 'ML_MODELS/random_forest_pipeline.pkl',
+    "Decision Tree": 'ML_MODELS/decision_tree_pipeline.pkl',
+    "Linear Regression": 'ML_MODELS/linear_regression_pipeline.pkl'
 }
 DL_PATHS = {
     "LSTM": 'DL_MODELS/lstm_model.keras',
@@ -43,14 +44,13 @@ CATEGORICAL_OPTIONS = {
 
 @st.cache_resource
 def load_all_assets():
-    """Memuat SEMUA model (ML dan DL) yang ada, untuk diuji LIVE."""
+    """Memuat Scaler (untuk DL) dan Model Pipeline (untuk ML)."""
     models = {}
     
     try:
+        # SCALER MASIH DIBUTUHKAN UNTUK MENSKALA DATA DL SECARA MANUAL
         scaler = joblib.load('PREPROCESSOR/minmax_scaler.pkl')
-    except FileNotFoundError:
-        st.error(f"Error: Scaler file not found.")
-        st.stop()
+    except FileNotFoundError: st.error(f"Error: Scaler file not found."); st.stop()
     
     all_paths = {**ML_PATHS, **DL_PATHS}
     for name, path in all_paths.items():
@@ -58,10 +58,10 @@ def load_all_assets():
             if name in DL_PATHS:
                 models[name] = load_model(path)
             else:
-                models[name] = joblib.load(path) # Mencoba memuat file .pkl
+                models[name] = joblib.load(path) # Memuat Pipeline ML baru
         except Exception as e:
             st.warning(f"Error loading {name} from {path}. Model ini mungkin GAGAL LIVE. Log: {e}")
-            models[name] = None # Jika gagal dimuat, set ke None
+            models[name] = None 
 
     return models, scaler
 
@@ -73,34 +73,38 @@ MODELS, SCALER = load_all_assets()
 # ==============================================================================
 
 def preprocess_input(input_data, scaler):
-    """Mengambil input form, memfilter 5 fitur utama, dan mengembalikan Array NumPy yang sudah di-scale."""
+    """Mengambil input form, memfilter 5 fitur utama, dan mengembalikan Array NumPy SCALE dan DataFrame MENTAH."""
     
     full_input_df = pd.DataFrame([input_data])
-    input_df_filtered = full_input_df[FEATURES_USED]
-    X_scaled = scaler.transform(input_df_filtered)
+    input_df_mentah = full_input_df[FEATURES_USED] # <-- MENTAH untuk ML Pipeline
     
-    return X_scaled # Mengembalikan Array NumPy 2D
+    # Scaling manual untuk model DL (tetap diperlukan)
+    X_scaled = scaler.transform(input_df_mentah)
+    
+    return input_df_mentah, X_scaled # Mengembalikan DataFrame Mentah dan Array Scaled
 
 
-def predict_score(model_name, model, X_scaled):
-    """Melakukan prediksi, menyesuaikan reshape untuk DL atau menggunakan 2D (DNN/ML)."""
+def predict_score(model_name, model, input_df_mentah, X_scaled):
+    """Melakukan prediksi, menggunakan input mentah untuk Pipeline ML."""
 
     # 1. Tentukan input akhir X_final
-    if model_name in DL_3D_STANDARD: 
-        # LSTM
+    if model_name in ML_PATHS:
+        # ML Pipeline: Input harus DataFrame MENTAH (Pipeline akan men-scale-nya)
+        X_final = input_df_mentah 
+    elif model_name in DL_3D_STANDARD: 
+        # LSTM: Input Array Scaled + Reshape 3D
         X_final = X_scaled.reshape((X_scaled.shape[0], 1, X_scaled.shape[1]))
     elif model_name in DL_3D_CNN:
-        # CNN
+        # CNN: Input Array Scaled + Reshape (1, 5, 1)
         X_final = X_scaled.reshape((X_scaled.shape[0], X_scaled.shape[1], 1))
     else: 
-        # DNN dan SEMUA MODEL ML (Menggunakan Array NumPy 2D)
+        # DNN: Input Array Scaled 2D
         X_final = X_scaled
     
     # 2. Lakukan Prediksi
     try:
         prediction = model.predict(X_final, verbose=0)
     except Exception as e:
-        st.error(f"Prediction Failed for {model_name}. Log: {type(e).__name__}")
         return None
     
     # 3. Ambil nilai prediksi
@@ -180,13 +184,13 @@ if menu_selection == "Deep Learning (LIVE)":
     input_data = get_input_form()
     
     if st.button("Hitung Prediksi DL", type="primary"):
-        X_scaled = preprocess_input(input_data, SCALER)
+        input_df_mentah, X_scaled = preprocess_input(input_data, SCALER)
         results = []
         
         for name in DL_PATHS.keys():
             model = MODELS.get(name)
-            if model and model != "STATIC_MODEL":
-                prediction = predict_score(name, model, X_scaled)
+            if model:
+                prediction = predict_score(name, model, input_df_mentah, X_scaled)
                 if prediction is not None:
                     results.append({"Algoritma": name, "Prediksi Nilai": f"{prediction:.2f}"})
 
@@ -206,13 +210,13 @@ elif menu_selection == "Machine Learning (LIVE)":
     input_data = get_input_form() 
     
     if st.button("Hitung Prediksi ML", type="primary"):
-        X_scaled = preprocess_input(input_data, SCALER)
+        input_df_mentah, X_scaled = preprocess_input(input_data, SCALER)
         results = []
         
         for name in ML_PATHS.keys():
             model = MODELS.get(name)
-            if model and model != "STATIC_MODEL": # Hanya jika model berhasil dimuat dan bukan placeholder
-                prediction = predict_score(name, model, X_scaled)
+            if model: # Jika model berhasil dimuat (berupa Pipeline)
+                prediction = predict_score(name, model, input_df_mentah, X_scaled)
                 if prediction is not None:
                     results.append({"Algoritma": name, "Prediksi Nilai": f"{prediction:.2f}"})
         
@@ -222,4 +226,4 @@ elif menu_selection == "Machine Learning (LIVE)":
             st.markdown("### Hasil Prediksi Live (ML)")
             st.dataframe(results_df.sort_values(by="Prediksi Nilai", ascending=False).set_index("Algoritma"), use_container_width=True)
         else:
-            st.error("Gagal mendapatkan hasil dari model ML. Cek log error deployment untuk detail masalah file .pkl.")
+            st.error("Gagal mendapatkan hasil dari model ML. File Pipeline mungkin tidak kompatibel.")
