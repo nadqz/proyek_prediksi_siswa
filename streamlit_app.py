@@ -60,8 +60,9 @@ def load_all_assets():
             else:
                 models[name] = joblib.load(path) # Mencoba memuat file .pkl
         except Exception as e:
-            st.warning(f"Error loading {name} from {path}. Model ini mungkin GAGAL LIVE. Log: {e}")
-            models[name] = None # Jika gagal dimuat, set ke None
+            # Jika gagal dimuat (biasanya karena .pkl), set ke None
+            st.warning(f"Error loading {name}. Model ini mungkin GAGAL LIVE. Log: {e}")
+            models[name] = None 
 
     return models, scaler
 
@@ -190,10 +191,7 @@ if menu_selection == "Deep Learning (LIVE)":
             if model and model != "STATIC_MODEL": # Hanya jika model berhasil dimuat
                 prediction = predict_score(name, model, X_scaled)
                 if prediction is not None:
-                    results.append({
-                        "Algoritma": name,
-                        "Prediksi Nilai": f"{prediction:.2f}"
-                    })
+                    results.append({"Algoritma": name, "Prediksi Nilai": f"{prediction:.2f}"})
 
         if results:
             results_df = pd.DataFrame(results)
@@ -227,4 +225,4 @@ elif menu_selection == "Machine Learning (LIVE)":
             st.markdown("### Hasil Prediksi Live (ML)")
             st.dataframe(results_df.sort_values(by="Prediksi Nilai", ascending=False).set_index("Algoritma"), use_container_width=True)
         else:
-            st.error("Gagal mendapatkan hasil dari model ML. Cek log error deployment untuk detail masalah file .pkl.")
+            st.error("Gagal mendapatkan hasil dari model ML. File .pkl Anda tidak kompatibel.")
