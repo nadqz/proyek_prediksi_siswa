@@ -8,7 +8,7 @@ from tensorflow.keras.models import load_model
 # 1. SETUP ASET MODEL DAN DATA
 # ==============================================================================
 
-# Definisikan 5 Fitur yang BENAR-BENAR DIGUNAKAN OLEH MODEL (Digunakan untuk filtering)
+# Definisikan 5 Fitur yang BENAR-BENAR DIGUNAKAN OLEH MODEL
 FEATURES_USED = [
     "study_hours_per_day", "attendance_percentage", "mental_health_rating", 
     "sleep_hours", "exercise_frequency"
@@ -27,13 +27,13 @@ DL_PATHS = {
     "DNN": 'DL_MODELS/dnn_model.keras'
 }
 
-# Definisikan model berdasarkan kebutuhan input SHAPE (untuk logika predict_score)
+# Definisikan model berdasarkan kebutuhan input SHAPE
 DL_3D_STANDARD = ["LSTM"] 
 DL_3D_CNN = ["CNN"] 
 
 # Definisikan OPSI KATEGORI untuk UI
 CATEGORICAL_OPTIONS = {
-    'gender': ['Female', 'Male'],
+    'gender': ['Perempuan', 'Laki-laki'],
     'part_time_job': ['Tidak', 'Ya'],
     'diet_quality': ['Baik', 'Cukup', 'Buruk', 'Rata-rata'],
     'parental_education_level': ['Master', 'Sarjana (Bachelor)', 'SMA/Sederajat', 'Kuliah Non-Gelar', 'Doktor (PhD)'],
@@ -44,7 +44,6 @@ CATEGORICAL_OPTIONS = {
 
 @st.cache_resource
 def load_all_assets():
-    """Fungsi untuk memuat semua model dan scaler ke memori."""
     models = {}
     
     try:
@@ -73,46 +72,29 @@ MODELS, SCALER = load_all_assets()
 # ==============================================================================
 
 def preprocess_input(input_data, scaler):
-    """
-    Mengambil input form, memfilter 5 fitur utama, dan mengembalikan DataFrame dan Array.
-    """
-    
-    # 1. Buat DataFrame UTUH dari input form
+    """Mengambil input form, memfilter 5 fitur utama, dan mengembalikan DataFrame dan Array."""
     full_input_df = pd.DataFrame([input_data])
-    
-    # 2. FILTER: Ambil hanya 5 fitur numerik yang dibutuhkan model
     input_df_filtered = full_input_df[FEATURES_USED]
-    
-    # 3. Scaling (Untuk DL dan LR)
     X_scaled = scaler.transform(input_df_filtered)
-    
-    return input_df_filtered, X_scaled # Mengembalikan DataFrame dan Array
+    return input_df_filtered, X_scaled
 
 def predict_score(model_name, model, input_df, X_scaled):
     """Melakukan prediksi, menyesuaikan input format (DataFrame/Array) dan shape (2D/3D)."""
 
-    # 1. Tentukan input akhir X_final
     if model_name in DL_3D_STANDARD: 
-        # LSTM: (samples, timesteps=1, features=5)
         X_final = X_scaled.reshape((X_scaled.shape[0], 1, X_scaled.shape[1]))
     elif model_name in DL_3D_CNN:
-        # CNN: (samples, sequence_length=5, feature_depth=1)
         X_final = X_scaled.reshape((X_scaled.shape[0], X_scaled.shape[1], 1))
     elif model_name in ML_PATHS:
-        # ML (RF, DT, LR): Gunakan DataFrame untuk robustness versi
         X_final = input_df 
-    else: # DNN (menggunakan array 2D)
+    else: # DNN
         X_final = X_scaled
     
-    # 2. Lakukan Prediksi
     try:
         prediction = model.predict(X_final, verbose=0)
     except Exception as e:
-        # Jika prediksi gagal (biasanya karena versi scikit-learn), kembalikan None
-        st.error(f"Prediction Failed for {model_name}. Cek log: {type(e).__name__}")
         return None
     
-    # 3. Ambil nilai prediksi
     if model_name in DL_PATHS:
         return float(prediction[0][0]) 
     else:
@@ -122,47 +104,72 @@ def predict_score(model_name, model, input_df, X_scaled):
 # 3. STRUKTUR ANTARMUKA STREAMLIT (FINAL INTERAKTIF)
 # ==============================================================================
 
-st.set_page_config(page_title="Prediksi Nilai Siswa", layout="wide", initial_sidebar_state="auto")
-st.title("💡 Form Interaktif: Prediksi Nilai Ujian Siswa")
-st.sidebar.header("⚙️ Konfigurasi Model")
-selected_model_name = st.sidebar.selectbox(
-    "Model Benchmark (Hanya Display):", 
-    list(MODELS.keys()),
-    index=list(MODELS.keys()).index("Random Forest") if "Random Forest" in MODELS else 0
-)
+st.set_page_config(page_title="Prediksi Nilai Siswa", layout="wide")
+st.title("🎯 Formulir Interaktif: Prediksi Nilai Ujian Siswa")
+st.caption("Jawablah pertanyaan di bawah ini untuk melihat estimasi nilai ujian Anda berdasarkan 6 model Machine Learning dan Deep Learning.")
 
-st.warning("⚠️ Perhatian: Model yang memprediksi saat ini HANYA menggunakan 5 Fitur Numerik dari Bagian 1.")
+# --- Bagian Peringatan ---
+st.warning("⚠️ Perhatian: Model yang tersedia saat ini HANYA menggunakan 5 Faktor Utama dari Bagian 1.")
 
-# --- BAGIAN INPUT FORM ---
-st.header("1. Faktor Utama (5 Fitur yang Digunakan)")
-
-# ... (UI input tetap sama, pastikan semua variabel terdaftar di input_data) ...
+# --- BAGIAN 1: FAKTOR UTAMA (5 FITUR YANG DIGUNAKAN) ---
+st.header("1. Faktor Utama (Prediktor Kuat)")
 
 col_main_1, col_main_2, col_main_3 = st.columns(3)
 
 with col_main_1:
-    study_hours = st.number_input("Jam Belajar per Hari", min_value=0.0, max_value=8.0, value=4.0, step=0.5, key='study')
-    gender = st.radio("Jenis Kelamin", CATEGORICAL_OPTIONS['gender'], horizontal=True, key='gender_input')
+    # PERTANYAAN 1: STUDY HOURS
+    study_hours = st.number_input(
+        "Berapa jam rata-rata Anda belajar per hari?", 
+        min_value=0.0, max_value=8.0, value=4.0, step=0.5,
+        help="Input antara 0 hingga 8 jam."
+    )
+    # PERTANYAAN KATEGORI (Hanya UI)
+    gender = st.radio("Apa jenis kelamin Anda?", CATEGORICAL_OPTIONS['gender'], horizontal=True, key='gender_input')
 with col_main_2:
-    attendance = st.number_input("Persentase Kehadiran (%)", min_value=60.0, max_value=100.0, value=90.0, step=0.1, key='attn')
-    mental_health = st.radio("Rating Kesehatan Mental (1-10)", options=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], index=6, horizontal=True, key='mental')
+    # PERTANYAAN 2: ATTENDANCE
+    attendance = st.number_input(
+        "Berapa persentase kehadiran Anda (%) di kelas/sesi?", 
+        min_value=60.0, max_value=100.0, value=90.0, step=0.1,
+        help="Input antara 60% hingga 100%."
+    )
+    # PERTANYAAN 3: MENTAL HEALTH RATING
+    mental_health = st.radio(
+        "Bagaimana rating kesehatan mental Anda saat ini (1-10)?",
+        options=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], index=6, horizontal=True,
+        help="1 = Sangat Buruk, 10 = Sangat Baik."
+    )
 with col_main_3:
-    sleep_hours = st.slider("Jam Tidur per Hari", min_value=4.0, max_value=10.0, value=7.0, step=0.5, key='sleep')
-    exercise_freq = st.selectbox("Frekuensi Olahraga per Minggu", options=list(range(0, 8)), index=3, key='exercise')
+    # PERTANYAAN 4: SLEEP HOURS
+    sleep_hours = st.slider(
+        "Berapa jam rata-rata Anda tidur per hari?",
+        min_value=4.0, max_value=10.0, value=7.0, step=0.5,
+        help="Geser untuk memilih jam tidur rata-rata harian Anda."
+    )
+    # PERTANYAAN 5: EXERCISE FREQUENCY
+    exercise_freq = st.selectbox(
+        "Berapa kali (hari) Anda berolahraga dalam seminggu?",
+        options=list(range(0, 8)), index=3,
+        help="Pilih 0 hingga 7 hari."
+    )
 
 
 st.markdown("---")
 
 
-st.header("2. Data Latar Belakang (Diabaikan Model)")
+# --- BAGIAN 2: DATA LATAR BELAKANG (DIABAIKAN MODEL) ---
+st.header("2. Data Latar Belakang (Tidak Memengaruhi Prediksi)")
+st.caption("Data ini hanya untuk kepentingan studi dan pengumpulan data di masa mendatang.")
+
 col_add_1, col_add_2 = st.columns(2)
 
 with col_add_1:
-    diet_quality = st.selectbox("Kualitas Diet", CATEGORICAL_OPTIONS['diet_quality'], key='diet')
-    part_time_job = st.radio("Kerja Paruh Waktu", CATEGORICAL_OPTIONS['part_time_job'], horizontal=True, key='job_input')
+    # PERTANYAAN KATEGORI
+    diet_quality = st.selectbox("Bagaimana kualitas diet Anda?", CATEGORICAL_OPTIONS['diet_quality'], key='diet')
+    part_time_job = st.radio("Apakah Anda memiliki pekerjaan paruh waktu?", CATEGORICAL_OPTIONS['part_time_job'], horizontal=True, key='job_input')
 with col_add_2:
-    parental_education_level = st.selectbox("Edukasi Orang Tua", CATEGORICAL_OPTIONS['parental_education_level'], key='parental')
-    age = st.number_input("Usia (Tahun) [Diabaikan]", min_value=16, max_value=30, value=20, key='age_input')
+    # PERTANYAAN KATEGORI
+    parental_education_level = st.selectbox("Apa tingkat pendidikan tertinggi orang tua Anda?", CATEGORICAL_OPTIONS['parental_education_level'], key='parental')
+    age = st.number_input("Berapa usia Anda saat ini?", min_value=16, max_value=30, value=20, key='age_input')
 
 
 # Kumpulkan data input LENGKAP dari FORM
@@ -173,22 +180,26 @@ input_data = {
     # Fitur Pendukung (Diabaikan)
     'gender': gender, 'part_time_job': part_time_job, 'diet_quality': diet_quality,
     'parental_education_level': parental_education_level, 
-    'internet_quality': st.selectbox("Kualitas Internet [Diabaikan]", CATEGORICAL_OPTIONS['internet_quality'], key='internet_input'),
-    'extracurricular_participation': st.radio("Ikut Ekstrakurikuler [Diabaikan]", CATEGORICAL_OPTIONS['extracurricular_participation'], horizontal=True, key='extra_input'),
+    
+    # Gunakan nilai default/input untuk variabel yang ditampilkan di form
+    'internet_quality': st.selectbox("Kualitas Internet di tempat tinggal Anda?", CATEGORICAL_OPTIONS['internet_quality'], key='internet_input'),
+    'extracurricular_participation': st.radio("Apakah Anda ikut ekstrakurikuler?", CATEGORICAL_OPTIONS['extracurricular_participation'], horizontal=True, key='extra_input'),
     'age': age, 
-    'social_media_hours': st.number_input("Jam Medsos per Hari [Diabaikan]", 0.0, 6.0, 2.0, step=0.5, key='socmed_input'),
-    'netflix_hours': st.slider("Jam Netflix per Hari [Diabaikan]", 0.0, 4.0, 1.0, 0.1, key='netflix_input')
+    'social_media_hours': st.number_input("Berapa jam rata-rata Anda menggunakan media sosial per hari?", 0.0, 6.0, 2.0, step=0.5, key='socmed_input'),
+    'netflix_hours': st.slider("Berapa jam rata-rata Anda menonton hiburan (Netflix/lainnya) per hari?", 0.0, 4.0, 1.0, 0.1, key='netflix_input')
 }
 
 
 # 4. Tombol Prediksi dan Output
 st.markdown("## 📊 Hasil Prediksi dan Perbandingan")
 
+# Tombol aksi tunggal
 if st.button("Hitung Prediksi Semua Model", type="primary"):
     
     if not MODELS:
-        st.error("Tidak ada model yang berhasil dimuat. Cek log error deployment untuk detail.")
+        st.error("Tidak ada model yang berhasil dimuat. Cek log error deployment.")
     else:
+        # Preprocessing input
         input_df, X_scaled = preprocess_input(input_data, SCALER)
         results = []
         
