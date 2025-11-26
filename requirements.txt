@@ -3,5 +3,5 @@ pandas
 numpy
 joblib
 tensorflow
-# Versi scikit-learn yang digunakan saat training:
+keras
 scikit-learn==1.6.1
