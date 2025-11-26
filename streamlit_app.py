@@ -8,13 +8,13 @@ from tensorflow.keras.models import load_model
 # 1. SETUP ASET MODEL DAN DATA
 # ==============================================================================
 
-# Definisikan Fitur yang BENAR-BENAR DIGUNAKAN OLEH MODEL
+# Definisikan 5 Fitur yang BENAR-BENAR DIGUNAKAN OLEH MODEL
 FEATURES_USED = [
     "study_hours_per_day", "attendance_percentage", "mental_health_rating", 
     "sleep_hours", "exercise_frequency"
 ]
 
-# Path files dan Konfigurasi
+# Path file dan Konfigurasi
 ML_PATHS = {
     "Random Forest": 'ML_MODELS/random_forest_model.pkl',
     "Decision Tree": 'ML_MODELS/decision_tree_model.pkl',
@@ -26,12 +26,16 @@ DL_PATHS = {
     "DNN": 'DL_MODELS/dnn_model.keras'
 }
 
-# DATA STATIS ML (Placeholder karena file .pkl rusak)
+# DATA STATIS ML (Digunakan karena file .pkl rusak - GANTI DENGAN NILAI TERBAIK ANDA)
 STATIC_ML_RESULTS = {
     "Random Forest": 80.50, "Decision Tree": 75.20, "Linear Regression": 71.30
 }
 
-# OPSI KATEGORI untuk UI
+# Definisikan model berdasarkan kebutuhan input SHAPE
+DL_3D_STANDARD = ["LSTM"] 
+DL_3D_CNN = ["CNN"] 
+
+# Definisikan OPSI KATEGORI untuk UI
 CATEGORICAL_OPTIONS = {
     'gender': ['Perempuan', 'Laki-laki'],
     'part_time_job': ['Tidak', 'Ya'],
@@ -41,13 +45,10 @@ CATEGORICAL_OPTIONS = {
     'extracurricular_participation': ['Ya', 'Tidak']
 }
 
-DL_3D_STANDARD = ["LSTM"] 
-DL_3D_CNN = ["CNN"] 
-
 
 @st.cache_resource
 def load_all_assets():
-    """Memuat Scaler dan Model DL (Model ML digantikan placeholder)."""
+    """Fungsi memuat Scaler dan Model DL (Model ML digantikan placeholder)."""
     models = {}
     
     try:
@@ -56,6 +57,7 @@ def load_all_assets():
         st.error(f"Error: Scaler file not found.")
         st.stop()
     
+    # MUAT MODEL DL
     for name, path in DL_PATHS.items():
         try:
             models[name] = load_model(path)
@@ -77,15 +79,18 @@ MODELS, SCALER = load_all_assets()
 
 def preprocess_input(input_data, scaler):
     """Mengambil input form, memfilter 5 fitur utama, dan mengembalikan Array NumPy yang sudah di-scale."""
+    
     full_input_df = pd.DataFrame([input_data])
     input_df_filtered = full_input_df[FEATURES_USED]
     X_scaled = scaler.transform(input_df_filtered)
+    
     return X_scaled 
 
 
 def predict_score(model_name, model, X_scaled):
     """Melakukan prediksi, menyesuaikan reshape untuk DL atau mengambil nilai statis untuk ML."""
 
+    # --- LOGIKA STATIC (ML) ---
     if model == "STATIC_MODEL":
         return STATIC_ML_RESULTS.get(model_name, 70.00) 
 
@@ -116,14 +121,11 @@ menu_selection = st.sidebar.radio(
     ["Deep Learning (LIVE)", "Machine Learning (STATIS)"]
 )
 
-st.title("🎯 Proyek Benchmarking Prediksi Nilai")
-st.markdown("---")
-
-
 # --- DEFINISI FORM INPUT (Digunakan di kedua halaman) ---
 def get_input_form():
     """Menampilkan form dan mengumpulkan input (5 fitur utama dan tambahan)."""
     
+    # --- BAGIAN 1: FAKTOR UTAMA ---
     st.header("1. Faktor Utama (Prediktor Kuat)")
 
     col_main_1, col_main_2, col_main_3 = st.columns(3)
@@ -139,7 +141,10 @@ def get_input_form():
         exercise_freq = st.selectbox("Berapa kali (hari) Anda berolahraga dalam seminggu?", options=list(range(0, 8)), index=3, key='exercise')
 
     st.markdown("---")
+    
+    # --- BAGIAN 2: DATA LATAR BELAKANG (Diabaikan Model) ---
     st.header("2. Data Latar Belakang (Tidak Memengaruhi Prediksi)")
+    st.caption("Data di bagian ini hanya untuk pengumpulan dan tidak memengaruhi hasil prediksi.")
 
     col_add_1, col_add_2 = st.columns(2)
     with col_add_1:
@@ -168,7 +173,7 @@ def get_input_form():
 if menu_selection == "Deep Learning (LIVE)":
     
     st.header("Model Deep Learning (LSTM, CNN, DNN)")
-    st.info("Nilai prediksi dihitung secara *live* berdasarkan input Anda. Harap isi formulir di bawah ini.")
+    st.info("Nilai prediksi dihitung secara *live* berdasarkan input Anda.")
     
     input_data = get_input_form()
     
@@ -189,7 +194,7 @@ if menu_selection == "Deep Learning (LIVE)":
         if results:
             results_df = pd.DataFrame(results)
             results_df['Prediksi Nilai'] = results_df['Prediksi Nilai'].astype(float)
-            st.markdown("### Hasil Prediksi Live")
+            st.markdown("### Hasil Prediksi Live (DL)")
             st.dataframe(results_df.sort_values(by="Prediksi Nilai", ascending=False).set_index("Algoritma"), use_container_width=True)
 
 elif menu_selection == "Machine Learning (STATIS)":
@@ -197,23 +202,18 @@ elif menu_selection == "Machine Learning (STATIS)":
     st.header("Model Machine Learning (RF, DT, LR)")
     st.warning("⚠️ Semua model ML gagal dimuat. Hasil di bawah adalah **nilai statistik *placeholder* terbaik** dari fase training.")
     
-    # Tampilkan Placeholder UI
-    st.subheader("Estimasi Kinerja Model ML (Statis)")
+    # Tampilkan Form Input (Hanya untuk konsistensi UI)
+    input_data = get_input_form() 
     
-    # Siapkan data statis untuk ditampilkan
-    static_results = []
-    for name, score in STATIC_ML_RESULTS.items():
-         static_results.append({
-             "Algoritma": name,
-             "Prediksi Nilai Terbaik": f"{score:.2f}",
-             "Catatan": "Nilai Statis/Placeholder"
-         })
-         
-    st.dataframe(pd.DataFrame(static_results).set_index("Algoritma"), use_container_width=True)
-    
-    st.markdown("---")
-    st.subheader("Kebutuhan Input (Hanya Untuk Display)")
-    st.caption("Karena model tidak digunakan, data ini hanya untuk tampilan perbandingan. Gunakan Menu DL untuk prediksi live.")
-    
-    # Tampilkan Form Input (Hanya untuk konsistensi UI, tidak menghitung prediksi)
-    get_input_form()
+    if st.button("Tampilkan Hasil Statistik", type="primary"):
+        # Siapkan data statis untuk ditampilkan
+        static_results = []
+        for name, score in STATIC_ML_RESULTS.items():
+            static_results.append({
+                "Algoritma": name,
+                "Prediksi Nilai Terbaik": f"{score:.2f}",
+                "Catatan": "Nilai Statis/Placeholder"
+            })
+            
+        st.markdown("### Hasil Statistik Terbaik (ML)")
+        st.dataframe(pd.DataFrame(static_results).set_index("Algoritma"), use_container_width=True)
