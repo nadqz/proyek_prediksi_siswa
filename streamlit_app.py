@@ -60,9 +60,8 @@ def load_all_assets():
             else:
                 models[name] = joblib.load(path) # Mencoba memuat file .pkl
         except Exception as e:
-            # Jika gagal dimuat (biasanya karena .pkl), set ke None
-            st.warning(f"Error loading {name}. Model ini mungkin GAGAL LIVE. Log: {e}")
-            models[name] = None 
+            st.warning(f"Error loading {name} from {path}. Model ini mungkin GAGAL LIVE. Log: {e}")
+            models[name] = None # Jika gagal dimuat, set ke None
 
     return models, scaler
 
@@ -80,7 +79,7 @@ def preprocess_input(input_data, scaler):
     input_df_filtered = full_input_df[FEATURES_USED]
     X_scaled = scaler.transform(input_df_filtered)
     
-    return X_scaled 
+    return X_scaled # Mengembalikan Array NumPy 2D
 
 
 def predict_score(model_name, model, X_scaled):
@@ -101,7 +100,6 @@ def predict_score(model_name, model, X_scaled):
     try:
         prediction = model.predict(X_final, verbose=0)
     except Exception as e:
-        # Jika prediksi gagal, kembalikan None
         st.error(f"Prediction Failed for {model_name}. Log: {type(e).__name__}")
         return None
     
@@ -129,7 +127,6 @@ st.markdown("---")
 
 # --- DEFINISI FORM INPUT (Digunakan di kedua halaman) ---
 def get_input_form():
-    """Menampilkan form dan mengumpulkan input (5 fitur utama dan tambahan)."""
     
     st.header("1. Faktor Utama (Prediktor Kuat)")
 
@@ -188,7 +185,7 @@ if menu_selection == "Deep Learning (LIVE)":
         
         for name in DL_PATHS.keys():
             model = MODELS.get(name)
-            if model and model != "STATIC_MODEL": # Hanya jika model berhasil dimuat
+            if model and model != "STATIC_MODEL":
                 prediction = predict_score(name, model, X_scaled)
                 if prediction is not None:
                     results.append({"Algoritma": name, "Prediksi Nilai": f"{prediction:.2f}"})
@@ -225,4 +222,4 @@ elif menu_selection == "Machine Learning (LIVE)":
             st.markdown("### Hasil Prediksi Live (ML)")
             st.dataframe(results_df.sort_values(by="Prediksi Nilai", ascending=False).set_index("Algoritma"), use_container_width=True)
         else:
-            st.error("Gagal mendapatkan hasil dari model ML. File .pkl Anda tidak kompatibel.")
+            st.error("Gagal mendapatkan hasil dari model ML. Cek log error deployment untuk detail masalah file .pkl.")
