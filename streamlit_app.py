@@ -130,7 +130,6 @@ st.markdown("---")
 def get_input_form():
     """Menampilkan form dan mengumpulkan input (5 fitur utama dan tambahan)."""
     
-    # --- BAGIAN 1: FAKTOR UTAMA ---
     st.header("1. Faktor Utama (Prediktor Kuat)")
 
     col_main_1, col_main_2, col_main_3 = st.columns(3)
@@ -147,7 +146,6 @@ def get_input_form():
 
     st.markdown("---")
     
-    # --- BAGIAN 2: DATA LATAR BELAKANG (Diabaikan Model) ---
     st.header("2. Data Latar Belakang (Tidak Memengaruhi Prediksi)")
     st.caption("Data di bagian ini hanya untuk pengumpulan dan tidak memengaruhi hasil prediksi.")
 
@@ -189,10 +187,13 @@ if menu_selection == "Deep Learning (LIVE)":
         
         for name in DL_PATHS.keys():
             model = MODELS.get(name)
-            if model: # Hanya jika model berhasil dimuat
+            if model and model != "STATIC_MODEL": # Hanya jika model berhasil dimuat
                 prediction = predict_score(name, model, X_scaled)
                 if prediction is not None:
-                    results.append({"Algoritma": name, "Prediksi Nilai": f"{prediction:.2f}"})
+                    results.append({
+                        "Algoritma": name,
+                        "Prediksi Nilai": f"{prediction:.2f}"
+                    })
 
         if results:
             results_df = pd.DataFrame(results)
@@ -200,12 +201,12 @@ if menu_selection == "Deep Learning (LIVE)":
             st.markdown("### Hasil Prediksi Live (DL)")
             st.dataframe(results_df.sort_values(by="Prediksi Nilai", ascending=False).set_index("Algoritma"), use_container_width=True)
         else:
-            st.error("Gagal mendapatkan hasil. Cek log error deployment.")
+            st.error("Gagal mendapatkan hasil dari model DL. Cek log error deployment.")
 
 elif menu_selection == "Machine Learning (LIVE)":
     
     st.header("Model Machine Learning (RF, DT, LR)")
-    st.warning("⚠️ Karena konflik versi, model ini mungkin gagal diprediksi. Harap lihat log error jika tombol ditekan.")
+    st.warning("⚠️ Perhatian: Model ML sangat sensitif terhadap versi. Hasil mungkin tidak muncul jika file .pkl tidak kompatibel.")
     
     input_data = get_input_form() 
     
@@ -226,4 +227,4 @@ elif menu_selection == "Machine Learning (LIVE)":
             st.markdown("### Hasil Prediksi Live (ML)")
             st.dataframe(results_df.sort_values(by="Prediksi Nilai", ascending=False).set_index("Algoritma"), use_container_width=True)
         else:
-            st.error("Gagal mendapatkan hasil dari model ML. File .pkl Anda tidak kompatibel.")
+            st.error("Gagal mendapatkan hasil dari model ML. Cek log error deployment untuk detail masalah file .pkl.")
