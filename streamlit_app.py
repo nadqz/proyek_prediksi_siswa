@@ -27,12 +27,11 @@ DL_PATHS = {
     "DNN": 'DL_MODELS/dnn_model.keras'
 }
 
-# --- DATA STATIS ML (Placeholder karena file .pkl rusak) ---
-# GANTI NILAI DI BAWAH INI dengan hasil prediksi RATA-RATA terbaik Anda saat training
+# --- DATA STATIS ML (GANTI NILAI INI SESUAI RATA-RATA PREDIKSI TERBAIK ANDA) ---
 STATIC_ML_RESULTS = {
-    "Random Forest": 80.50,  # Nilai Statis
-    "Decision Tree": 75.20,  # Nilai Statis
-    "Linear Regression": 71.30  # Nilai Statis
+    "Random Forest": 80.50,  # Nilai Statis (Placeholder)
+    "Decision Tree": 75.20,  # Nilai Statis (Placeholder)
+    "Linear Regression": 71.30  # Nilai Statis (Placeholder)
 }
 
 # Definisikan model berdasarkan kebutuhan input SHAPE
@@ -66,7 +65,7 @@ def load_all_assets():
         try:
             models[name] = load_model(path)
         except Exception as e:
-            st.warning(f"Error loading DL Model {name}. Skipping.")
+            st.warning(f"Error loading DL Model {name}. Skipping. Cek log error.")
 
     # GANTI MODEL ML DENGAN PLACEHOLDER STATIS
     for name in ML_PATHS.keys():
@@ -100,19 +99,16 @@ def predict_score(model_name, model, X_scaled):
 
     # --- LOGIKA LIVE (DL) ---
     if model_name in DL_3D_STANDARD: 
-        # LSTM
         X_final = X_scaled.reshape((X_scaled.shape[0], 1, X_scaled.shape[1]))
     elif model_name in DL_3D_CNN:
-        # CNN
         X_final = X_scaled.reshape((X_scaled.shape[0], X_scaled.shape[1], 1))
     else: 
-        # DNN
         X_final = X_scaled
     
     try:
         prediction = model.predict(X_final, verbose=0)
     except Exception as e:
-        st.error(f"Prediction Failed for {model_name} (DL). Log: {type(e).__name__}")
+        st.error(f"Prediction Failed for {model_name} (DL). Cek log: {type(e).__name__}")
         return None
     
     return float(prediction[0][0]) 
@@ -182,7 +178,7 @@ st.markdown("## 📊 Hasil Prediksi dan Perbandingan")
 if st.button("Hitung Prediksi Semua Model", type="primary"):
     
     if not MODELS:
-        st.error("Tidak ada model yang berhasil dimuat.")
+        st.error("Tidak ada model yang berhasil dimuat. Cek log error deployment.")
     else:
         # Preprocessing input
         X_scaled = preprocess_input(input_data, SCALER)
@@ -206,6 +202,7 @@ if st.button("Hitung Prediksi Semua Model", type="primary"):
             
             st.success("✅ Prediksi Selesai! Berikut Perbandingan Hasilnya:")
             
+            # Cari model terbaik (nilai tertinggi)
             best_model_name = results_df.sort_values(by="Prediksi Nilai", ascending=False).iloc[0]["Algoritma"]
             best_score = results_df["Prediksi Nilai"].max()
 
