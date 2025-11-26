@@ -3,5 +3,4 @@ pandas
 numpy
 joblib
 tensorflow
-keras
-scikit-learn==1.6.1
+scikit-learn
