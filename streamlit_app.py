@@ -44,6 +44,7 @@ CATEGORICAL_OPTIONS = {
 
 @st.cache_resource
 def load_all_assets():
+    """Fungsi untuk memuat semua model dan scaler ke memori."""
     models = {}
     
     try:
@@ -72,29 +73,42 @@ MODELS, SCALER = load_all_assets()
 # ==============================================================================
 
 def preprocess_input(input_data, scaler):
-    """Mengambil input form, memfilter 5 fitur utama, dan mengembalikan DataFrame dan Array."""
+    """Mengambil input form, memfilter 5 fitur utama, dan mengembalikan Array NumPy yang sudah di-scale."""
+    
     full_input_df = pd.DataFrame([input_data])
+    
+    # FILTER: Ambil hanya 5 fitur numerik yang dibutuhkan model
     input_df_filtered = full_input_df[FEATURES_USED]
+    
+    # Scaling (Mengembalikan Array NumPy 2D (1, 5))
     X_scaled = scaler.transform(input_df_filtered)
-    return input_df_filtered, X_scaled
+    
+    return X_scaled 
 
-def predict_score(model_name, model, input_df, X_scaled):
-    """Melakukan prediksi, menyesuaikan input format (DataFrame/Array) dan shape (2D/3D)."""
 
+def predict_score(model_name, model, X_scaled):
+    """Melakukan prediksi, menyesuaikan reshape untuk DL (LSTM/CNN) atau menggunakan 2D (DNN/ML)."""
+
+    # 1. Tentukan input akhir X_final
     if model_name in DL_3D_STANDARD: 
+        # LSTM: (samples, timesteps=1, features=5)
         X_final = X_scaled.reshape((X_scaled.shape[0], 1, X_scaled.shape[1]))
     elif model_name in DL_3D_CNN:
+        # CNN: (samples, sequence_length=5, feature_depth=1)
         X_final = X_scaled.reshape((X_scaled.shape[0], X_scaled.shape[1], 1))
-    elif model_name in ML_PATHS:
-        X_final = input_df 
-    else: # DNN
+    else: 
+        # DNN dan SEMUA MODEL ML (RF, DT, LR) - Menggunakan Array NumPy 2D (1, 5)
         X_final = X_scaled
     
+    # 2. Lakukan Prediksi
     try:
         prediction = model.predict(X_final, verbose=0)
     except Exception as e:
+        # Jika prediksi gagal, kembalikan None
+        st.error(f"Prediction Failed for {model_name}. Cek log: {type(e).__name__}")
         return None
     
+    # 3. Ambil nilai prediksi
     if model_name in DL_PATHS:
         return float(prediction[0][0]) 
     else:
@@ -109,7 +123,7 @@ st.title("🎯 Formulir Interaktif: Prediksi Nilai Ujian Siswa")
 st.caption("Jawablah pertanyaan di bawah ini untuk melihat estimasi nilai ujian Anda berdasarkan 6 model Machine Learning dan Deep Learning.")
 
 # --- Bagian Peringatan ---
-st.warning("⚠️ Perhatian: Model yang tersedia saat ini HANYA menggunakan 5 Faktor Utama dari Bagian 1.")
+st.warning("⚠️ Perhatian: Model yang memprediksi saat ini HANYA menggunakan 5 Faktor Utama dari Bagian 1.")
 
 # --- BAGIAN 1: FAKTOR UTAMA (5 FITUR YANG DIGUNAKAN) ---
 st.header("1. Faktor Utama (Prediktor Kuat)")
@@ -121,7 +135,7 @@ with col_main_1:
     study_hours = st.number_input(
         "Berapa jam rata-rata Anda belajar per hari?", 
         min_value=0.0, max_value=8.0, value=4.0, step=0.5,
-        help="Input antara 0 hingga 8 jam."
+        help="Input antara 0 hingga 8 jam.", key='study'
     )
     # PERTANYAAN KATEGORI (Hanya UI)
     gender = st.radio("Apa jenis kelamin Anda?", CATEGORICAL_OPTIONS['gender'], horizontal=True, key='gender_input')
@@ -130,26 +144,26 @@ with col_main_2:
     attendance = st.number_input(
         "Berapa persentase kehadiran Anda (%) di kelas/sesi?", 
         min_value=60.0, max_value=100.0, value=90.0, step=0.1,
-        help="Input antara 60% hingga 100%."
+        help="Input antara 60% hingga 100%.", key='attn'
     )
     # PERTANYAAN 3: MENTAL HEALTH RATING
     mental_health = st.radio(
         "Bagaimana rating kesehatan mental Anda saat ini (1-10)?",
         options=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], index=6, horizontal=True,
-        help="1 = Sangat Buruk, 10 = Sangat Baik."
+        help="1 = Sangat Buruk, 10 = Sangat Baik.", key='mental'
     )
 with col_main_3:
     # PERTANYAAN 4: SLEEP HOURS
     sleep_hours = st.slider(
         "Berapa jam rata-rata Anda tidur per hari?",
         min_value=4.0, max_value=10.0, value=7.0, step=0.5,
-        help="Geser untuk memilih jam tidur rata-rata harian Anda."
+        help="Geser untuk memilih jam tidur rata-rata harian Anda.", key='sleep'
     )
     # PERTANYAAN 5: EXERCISE FREQUENCY
     exercise_freq = st.selectbox(
         "Berapa kali (hari) Anda berolahraga dalam seminggu?",
         options=list(range(0, 8)), index=3,
-        help="Pilih 0 hingga 7 hari."
+        help="Pilih 0 hingga 7 hari.", key='exercise'
     )
 
 
@@ -158,7 +172,6 @@ st.markdown("---")
 
 # --- BAGIAN 2: DATA LATAR BELAKANG (DIABAIKAN MODEL) ---
 st.header("2. Data Latar Belakang (Tidak Memengaruhi Prediksi)")
-st.caption("Data ini hanya untuk kepentingan studi dan pengumpulan data di masa mendatang.")
 
 col_add_1, col_add_2 = st.columns(2)
 
@@ -180,8 +193,6 @@ input_data = {
     # Fitur Pendukung (Diabaikan)
     'gender': gender, 'part_time_job': part_time_job, 'diet_quality': diet_quality,
     'parental_education_level': parental_education_level, 
-    
-    # Gunakan nilai default/input untuk variabel yang ditampilkan di form
     'internet_quality': st.selectbox("Kualitas Internet di tempat tinggal Anda?", CATEGORICAL_OPTIONS['internet_quality'], key='internet_input'),
     'extracurricular_participation': st.radio("Apakah Anda ikut ekstrakurikuler?", CATEGORICAL_OPTIONS['extracurricular_participation'], horizontal=True, key='extra_input'),
     'age': age, 
@@ -193,19 +204,18 @@ input_data = {
 # 4. Tombol Prediksi dan Output
 st.markdown("## 📊 Hasil Prediksi dan Perbandingan")
 
-# Tombol aksi tunggal
 if st.button("Hitung Prediksi Semua Model", type="primary"):
     
     if not MODELS:
         st.error("Tidak ada model yang berhasil dimuat. Cek log error deployment.")
     else:
         # Preprocessing input
-        input_df, X_scaled = preprocess_input(input_data, SCALER)
+        X_scaled = preprocess_input(input_data, SCALER)
         results = []
         
         # LOOP MELALUI SEMUA MODEL
         for name, model in MODELS.items():
-            prediction = predict_score(name, model, input_df, X_scaled)
+            prediction = predict_score(name, model, X_scaled)
             
             if prediction is not None:
                 results.append({
@@ -221,7 +231,6 @@ if st.button("Hitung Prediksi Semua Model", type="primary"):
             
             st.success("✅ Prediksi Selesai! Berikut Perbandingan Hasilnya:")
             
-            # Cari model terbaik (nilai tertinggi)
             best_model_name = results_df.sort_values(by="Prediksi Nilai", ascending=False).iloc[0]["Algoritma"]
             best_score = results_df["Prediksi Nilai"].max()
 
