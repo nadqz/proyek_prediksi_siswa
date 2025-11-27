@@ -8,18 +8,18 @@ from tensorflow.keras.models import load_model
 # 1. SETUP ASET MODEL DAN DATA
 # ==============================================================================
 
-# Definisikan 5 Fitur yang BENAR-BENAL DIGUNAKAN OLEH MODEL
+# Definisikan 5 Fitur yang BENAR-BENAR DIGUNAKAN OLEH MODEL
 FEATURES_USED = [
     "study_hours_per_day", "attendance_percentage", "mental_health_rating", 
     "sleep_hours", "exercise_frequency"
 ]
 
-# Path files dan Konfigurasi
+# Path file (Asumsi semua model 5-fitur ada dan bekerja)
+SCALER_PATH = 'PREPROCESSOR/minmax_scaler.pkl'
 ML_PATHS = {
-    # PATH DIGANTI KE NAMA FILE PIPELINE BARU
-    "Random Forest": 'ML_MODELS/random_forest_pipeline.pkl',
-    "Decision Tree": 'ML_MODELS/decision_tree_pipeline.pkl',
-    "Linear Regression": 'ML_MODELS/linear_regression_pipeline.pkl'
+    "Random Forest": 'ML_MODELS/random_forest_model.pkl',
+    "Decision Tree": 'ML_MODELS/decision_tree_model.pkl',
+    "Linear Regression": 'ML_MODELS/linear_regression_model.pkl'
 }
 DL_PATHS = {
     "LSTM": 'DL_MODELS/lstm_model.keras',
@@ -27,203 +27,206 @@ DL_PATHS = {
     "DNN": 'DL_MODELS/dnn_model.keras'
 }
 
-# Definisikan model berdasarkan kebutuhan input SHAPE
+# Definisikan OPSI KATEGORI untuk UI (Hanya untuk tampilan, tidak digunakan di model)
+CATEGORICAL_OPTIONS = {
+    'gender': ['Female', 'Male'],
+    'part_time_job': ['No', 'Yes'],
+    'diet_quality': ['Good', 'Fair', 'Poor', 'Average'],
+    'parental_education_level': ['Master', 'Bachelor', 'High School', 'Some College', 'PhD'],
+    'internet_quality': ['Good', 'Average', 'Poor'],
+    'extracurricular_participation': ['Yes', 'No']
+}
+
 DL_3D_STANDARD = ["LSTM"] 
 DL_3D_CNN = ["CNN"] 
 
-# Definisikan OPSI KATEGORI untuk UI
-CATEGORICAL_OPTIONS = {
-    'gender': ['Perempuan', 'Laki-laki'],
-    'part_time_job': ['Tidak', 'Ya'],
-    'diet_quality': ['Baik', 'Cukup', 'Buruk', 'Rata-rata'],
-    'parental_education_level': ['Master', 'Sarjana (Bachelor)', 'SMA/Sederajat', 'Kuliah Non-Gelar', 'Doktor (PhD)'],
-    'internet_quality': ['Baik', 'Rata-rata', 'Buruk'],
-    'extracurricular_participation': ['Ya', 'Tidak']
-}
-
-
+# ... (Fungsi load_all_assets() tetap sama) ...
 @st.cache_resource
 def load_all_assets():
-    """Memuat Scaler (untuk DL) dan Model Pipeline (untuk ML)."""
     models = {}
-    
+    # ... (Loading logic for scaler, ML, and DL models) ...
     try:
-        # SCALER MASIH DIBUTUHKAN UNTUK MENSKALA DATA DL SECARA MANUAL
-        scaler = joblib.load('PREPROCESSOR/minmax_scaler.pkl')
-    except FileNotFoundError: st.error(f"Error: Scaler file not found."); st.stop()
+        scaler = joblib.load(SCALER_PATH)
+    except FileNotFoundError:
+        st.error(f"Error: Scaler file not found at {SCALER_PATH}. Check folder structure.")
+        st.stop()
     
+    # ... (Loading ML and DL models) ...
     all_paths = {**ML_PATHS, **DL_PATHS}
     for name, path in all_paths.items():
         try:
             if name in DL_PATHS:
                 models[name] = load_model(path)
             else:
-                models[name] = joblib.load(path) # Memuat Pipeline ML baru
+                models[name] = joblib.load(path)
+        except FileNotFoundError:
+            st.warning(f"Model {name} not found at {path}. Skipping.")
         except Exception as e:
-            st.warning(f"Error loading {name} from {path}. Model ini mungkin GAGAL LIVE. Log: {e}")
-            models[name] = None 
+            st.warning(f"Error loading {name}: {e}. Skipping.")
 
     return models, scaler
 
 MODELS, SCALER = load_all_assets()
 
-
 # ==============================================================================
-# 2. FUNGSI PREPROCESSING DAN PREDIKSI
+# 2. FUNGSI PREPROCESSING DAN PREDIKSI (Disempurnakan)
 # ==============================================================================
 
 def preprocess_input(input_data, scaler):
-    """Mengambil input form, memfilter 5 fitur utama, dan mengembalikan Array NumPy SCALE dan DataFrame MENTAH."""
+    """
+    Mengambil input dari form, memfilter HANYA 5 FITUR, 
+    dan mengembalikan DataFrame (untuk ML) dan Array (untuk DL).
+    """
     
+    # 1. Buat DataFrame UTUH dari input form
     full_input_df = pd.DataFrame([input_data])
-    input_df_mentah = full_input_df[FEATURES_USED] # <-- MENTAH untuk ML Pipeline
     
-    # Scaling manual untuk model DL (tetap diperlukan)
-    X_scaled = scaler.transform(input_df_mentah)
+    # 2. FILTER: Ambil hanya 5 fitur numerik yang dibutuhkan model
+    input_df_filtered = full_input_df[FEATURES_USED]
     
-    return input_df_mentah, X_scaled # Mengembalikan DataFrame Mentah dan Array Scaled
+    # 3. Scaling (Untuk DL dan LR)
+    X_scaled = scaler.transform(input_df_filtered)
+    
+    return input_df_filtered, X_scaled # Mengembalikan DataFrame dan Array
 
-
-def predict_score(model_name, model, input_df_mentah, X_scaled):
-    """Melakukan prediksi, menggunakan input mentah untuk Pipeline ML."""
-
-    # 1. Tentukan input akhir X_final
-    if model_name in ML_PATHS:
-        # ML Pipeline: Input harus DataFrame MENTAH (Pipeline akan men-scale-nya)
-        X_final = input_df_mentah 
-    elif model_name in DL_3D_STANDARD: 
-        # LSTM: Input Array Scaled + Reshape 3D
+# Fungsi predict_score (menggunakan logika fix terakhir)
+def predict_score(model_name, model, input_df, X_scaled):
+    
+    if model_name in DL_3D_STANDARD: 
+        # LSTM: (samples, timesteps=1, features=5)
         X_final = X_scaled.reshape((X_scaled.shape[0], 1, X_scaled.shape[1]))
     elif model_name in DL_3D_CNN:
-        # CNN: Input Array Scaled + Reshape (1, 5, 1)
+        # CNN: (samples, sequence_length=5, feature_depth=1)
         X_final = X_scaled.reshape((X_scaled.shape[0], X_scaled.shape[1], 1))
     else: 
-        # DNN: Input Array Scaled 2D
-        X_final = X_scaled
-    
-    # 2. Lakukan Prediksi
+        # DNN, RF, DT, LR: Gunakan DataFrame (untuk robustness ML) atau Array
+        if model_name in ML_PATHS:
+             X_final = input_df # Gunakan DataFrame untuk robustness ML
+        else: # DNN
+             X_final = X_scaled # Gunakan Array 2D untuk DNN
+
     try:
-        prediction = model.predict(X_final, verbose=0)
+        prediction = model.predict(X_final) 
     except Exception as e:
-        return None
+        st.error(f"Prediction Failed for {model_name}.")
+        st.error(f"Penyebab: {type(e).__name__} - {e}")
+        st.info("Kemungkinan masalah versi scikit-learn atau input data.")
+        st.stop()
     
-    # 3. Ambil nilai prediksi
     if model_name in DL_PATHS:
         return float(prediction[0][0]) 
     else:
-        return float(prediction[0]) 
+        return float(prediction[0])
 
 # ==============================================================================
-# 3. NAVIGASI STREAMLIT DAN HALAMAN
+# 3. STRUKTUR ANTARMUKA STREAMLIT (FORMULIR LENGKAP)
 # ==============================================================================
 
-st.set_page_config(page_title="Prediksi Nilai Siswa", layout="wide")
-st.sidebar.title("Navigasi Algoritma")
+st.set_page_config(page_title="Formulir Prediksi Nilai Siswa", layout="wide")
+st.title("🎯 Formulir Prediksi Nilai Ujian Siswa")
+st.warning("⚠️ Perhatian: Model yang tersedia saat ini HANYA menggunakan 5 Fitur Numerik.")
+st.info("Input di kolom 'Lingkungan & Gaya Hidup' tidak memengaruhi prediksi Anda.")
+st.markdown("---")
 
-menu_selection = st.sidebar.radio(
-    "Pilih Fokus Prediksi:",
-    ["Deep Learning (LIVE)", "Machine Learning (LIVE)"]
+# Input Model di Sidebar
+st.sidebar.header("Pilih Model")
+model_options = list(MODELS.keys())
+selected_model_name = st.sidebar.selectbox(
+    "Algoritma yang Digunakan:", 
+    model_options,
+    index=model_options.index("Random Forest") if "Random Forest" in model_options else 0
 )
 
-st.title("🎯 Proyek Benchmarking Prediksi Nilai")
+# --- BAGIAN INPUT FORM ---
+with st.container():
+    st.header("1. Data Dasar & Kebiasaan")
+    colA, colB, colC = st.columns(3)
+    
+    with colA:
+        # Kategori
+        gender = st.selectbox("Jenis Kelamin", CATEGORICAL_OPTIONS['gender'])
+        part_time_job = st.selectbox("Kerja Paruh Waktu", CATEGORICAL_OPTIONS['part_time_job'])
+        
+        # Numerik
+        study_hours = st.slider("Jam Belajar per Hari", 0.0, 8.0, 4.0, 0.1)
+        
+    with colB:
+        # Numerik
+        attendance = st.slider("Persentase Kehadiran (%)", 60.0, 100.0, 90.0, 0.1)
+        mental_health = st.slider("Rating Kesehatan Mental (1-10)", 1, 10, 7)
+        
+        # Kategori
+        parental_education_level = st.selectbox("Edukasi Orang Tua", CATEGORICAL_OPTIONS['parental_education_level'])
+        
+    with colC:
+        # Numerik
+        sleep_hours = st.slider("Jam Tidur per Hari", 4.0, 10.0, 7.5, 0.1)
+        exercise_freq = st.slider("Frekuensi Olahraga per Minggu", 0, 7, 3)
+        
+        # Kategori
+        extracurricular_participation = st.selectbox("Ikut Ekstrakurikuler", CATEGORICAL_OPTIONS['extracurricular_participation'])
+        
+
 st.markdown("---")
 
 
-# --- DEFINISI FORM INPUT (Digunakan di kedua halaman) ---
-def get_input_form():
+# Kolom Tambahan yang DIABAIKAN (Hanya untuk keperluan Form)
+with st.container():
+    st.header("2. Lingkungan & Gaya Hidup (Tidak Dipakai Model)")
+    colD, colE = st.columns(2)
     
-    st.header("1. Faktor Utama (Prediktor Kuat)")
-
-    col_main_1, col_main_2, col_main_3 = st.columns(3)
-
-    with col_main_1:
-        study_hours = st.number_input("Berapa jam rata-rata Anda belajar per hari?", 0.0, 8.0, 4.0, step=0.5, key='study')
-        gender = st.radio("Apa jenis kelamin Anda?", CATEGORICAL_OPTIONS['gender'], horizontal=True, key='gender_input')
-    with col_main_2:
-        attendance = st.number_input("Berapa persentase kehadiran Anda (%) di kelas/sesi?", 60.0, 100.0, 90.0, step=0.1, key='attn')
-        mental_health = st.radio("Bagaimana rating kesehatan mental Anda saat ini (1-10)?", options=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], index=6, horizontal=True, key='mental')
-    with col_main_3:
-        sleep_hours = st.slider("Berapa jam rata-rata Anda tidur per hari?", 4.0, 10.0, 7.0, step=0.5, key='sleep')
-        exercise_freq = st.selectbox("Berapa kali (hari) Anda berolahraga dalam seminggu?", options=list(range(0, 8)), index=3, key='exercise')
-
-    st.markdown("---")
-    
-    st.header("2. Data Latar Belakang (Tidak Memengaruhi Prediksi)")
-    st.caption("Data di bagian ini hanya untuk pengumpulan dan tidak memengaruhi hasil prediksi.")
-
-    col_add_1, col_add_2 = st.columns(2)
-    with col_add_1:
-        diet_quality = st.selectbox("Bagaimana kualitas diet Anda?", CATEGORICAL_OPTIONS['diet_quality'], key='diet')
-        part_time_job = st.radio("Apakah Anda memiliki pekerjaan paruh waktu?", CATEGORICAL_OPTIONS['part_time_job'], horizontal=True, key='job_input')
-    with col_add_2:
-        parental_education_level = st.selectbox("Apa tingkat pendidikan tertinggi orang tua Anda?", CATEGORICAL_OPTIONS['parental_education_level'], key='parental')
-        age = st.number_input("Berapa usia Anda saat ini?", min_value=16, max_value=30, value=20, key='age_input')
-
-
-    input_data = {
-        "study_hours_per_day": study_hours, "attendance_percentage": attendance, "mental_health_rating": mental_health,
-        "sleep_hours": sleep_hours, "exercise_frequency": exercise_freq,
-        'gender': gender, 'part_time_job': part_time_job, 'diet_quality': diet_quality,
-        'parental_education_level': parental_education_level, 
-        'internet_quality': st.selectbox("Kualitas Internet di tempat tinggal Anda?", CATEGORICAL_OPTIONS['internet_quality'], key='internet_input'),
-        'extracurricular_participation': st.radio("Apakah Anda ikut ekstrakurikuler?", CATEGORICAL_OPTIONS['extracurricular_participation'], horizontal=True, key='extra_input'),
-        'age': age, 
-        'social_media_hours': st.number_input("Berapa jam rata-rata Anda menggunakan media sosial per hari?", 0.0, 6.0, 2.0, step=0.5, key='socmed_input'),
-        'netflix_hours': st.slider("Berapa jam rata-rata Anda menonton hiburan (Netflix/lainnya) per hari?", 0.0, 4.0, 1.0, 0.1, key='netflix_input')
-    }
-    return input_data
-
-
-# --- LOGIKA HALAMAN ---
-
-if menu_selection == "Deep Learning (LIVE)":
-    
-    st.header("Model Deep Learning (LSTM, CNN, DNN)")
-    st.info("Nilai prediksi dihitung secara *live* menggunakan model Deep Learning.")
-    
-    input_data = get_input_form()
-    
-    if st.button("Hitung Prediksi DL", type="primary"):
-        input_df_mentah, X_scaled = preprocess_input(input_data, SCALER)
-        results = []
+    with colD:
+        # Kategori
+        diet_quality = st.selectbox("Kualitas Diet", CATEGORICAL_OPTIONS['diet_quality'])
+        internet_quality = st.selectbox("Kualitas Internet", CATEGORICAL_OPTIONS['internet_quality'])
         
-        for name in DL_PATHS.keys():
-            model = MODELS.get(name)
-            if model:
-                prediction = predict_score(name, model, input_df_mentah, X_scaled)
-                if prediction is not None:
-                    results.append({"Algoritma": name, "Prediksi Nilai": f"{prediction:.2f}"})
+    with colE:
+        # Numerik (Tambahan yang Tidak Digunakan Model Lama)
+        age = st.slider("Usia (tahun) [Diabaikan]", 18, 25, 20)
+        social_media_hours = st.slider("Jam Medsos per Hari [Diabaikan]", 0.0, 6.0, 2.0, 0.1)
 
-        if results:
-            results_df = pd.DataFrame(results)
-            results_df['Prediksi Nilai'] = results_df['Prediksi Nilai'].astype(float)
-            st.markdown("### Hasil Prediksi Live (DL)")
-            st.dataframe(results_df.sort_values(by="Prediksi Nilai", ascending=False).set_index("Algoritma"), use_container_width=True)
-        else:
-            st.error("Gagal mendapatkan hasil dari model DL. Cek log error deployment.")
 
-elif menu_selection == "Machine Learning (LIVE)":
+st.markdown("---")
+
+# Kumpulkan data input LENGKAP dari FORM
+input_data = {
+    "study_hours_per_day": study_hours,
+    "attendance_percentage": attendance,
+    "mental_health_rating": mental_health,
+    "sleep_hours": sleep_hours,
+    "exercise_frequency": exercise_freq,
     
-    st.header("Model Machine Learning (RF, DT, LR)")
-    st.warning("⚠️ Perhatian: Model ML sangat sensitif terhadap versi. Hasil mungkin tidak muncul jika file .pkl tidak kompatibel.")
+    # Data tambahan yang diabaikan (Tapi dikumpulkan untuk input_df utuh)
+    'gender': gender, 
+    'part_time_job': part_time_job,
+    'diet_quality': diet_quality,
+    'parental_education_level': parental_education_level,
+    'internet_quality': internet_quality,
+    'extracurricular_participation': extracurricular_participation,
+    'age': age,
+    'social_media_hours': social_media_hours,
+    'netflix_hours': st.slider("Jam Netflix per Hari [Diabaikan]", 0.0, 4.0, 1.0, 0.1, key='netflix_input')
+}
+
+
+# 4. Tombol Prediksi dan Output
+st.markdown("---")
+
+if st.button(f"Prediksi Nilai dengan {selected_model_name}"):
     
-    input_data = get_input_form() 
-    
-    if st.button("Hitung Prediksi ML", type="primary"):
-        input_df_mentah, X_scaled = preprocess_input(input_data, SCALER)
-        results = []
+    if selected_model_name not in MODELS:
+        st.error("Model yang dipilih tidak dapat dimuat. Cek file Anda.")
+    else:
+        # Panggil fungsi preprocessing yang BARU
+        input_df, X_scaled = preprocess_input(input_data, SCALER)
         
-        for name in ML_PATHS.keys():
-            model = MODELS.get(name)
-            if model: # Jika model berhasil dimuat (berupa Pipeline)
-                prediction = predict_score(name, model, input_df_mentah, X_scaled)
-                if prediction is not None:
-                    results.append({"Algoritma": name, "Prediksi Nilai": f"{prediction:.2f}"})
+        # Panggil fungsi prediksi yang BARU
+        final_prediction = predict_score(selected_model_name, MODELS[selected_model_name], input_df, X_scaled)
         
-        if results:
-            results_df = pd.DataFrame(results)
-            results_df['Prediksi Nilai'] = results_df['Prediksi Nilai'].astype(float)
-            st.markdown("### Hasil Prediksi Live (ML)")
-            st.dataframe(results_df.sort_values(by="Prediksi Nilai", ascending=False).set_index("Algoritma"), use_container_width=True)
-        else:
-            st.error("Gagal mendapatkan hasil dari model ML. File Pipeline mungkin tidak kompatibel.")
+        # Tampilkan Hasil
+        st.success("✅ Prediksi Selesai!")
+        st.markdown(f"## Nilai Ujian Prediksi: **{final_prediction:.2f}** / 100")
+        st.info(f"Menggunakan Model: **{selected_model_name}**")
+        
+        if final_prediction >= 80:
+            st.balloons()
