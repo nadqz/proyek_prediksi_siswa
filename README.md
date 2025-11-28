@@ -1,4 +1,4 @@
-[!Demontration Web](https://aplikasi-prediksi-nilai-siswa.streamlit.app/)
+[![Demontration Web](https://img.shields.io/badge/Demonstration%20-Web-yellow)](https://aplikasi-prediksi-nilai-siswa.streamlit.app/)
 ![Banner](doc/header.png)
 
 # Sistem Prediksi Nilai Akademik
