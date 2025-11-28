@@ -146,7 +146,7 @@ menu_selection = st.sidebar.radio(
     ["Deep Learning (LIVE)", "Machine Learning (LIVE)"]
 )
 
-st.title("💡 Proyek Benchmarking Prediksi Nilai")
+st.title("💡 Sistem Prediksi Nilai Akademik")
 st.markdown("---")
 
 
