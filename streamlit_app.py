@@ -7,10 +7,6 @@ from tensorflow.keras.models import load_model
 # --- INJEKSI CSS UNTUK TAMPILAN WEBSITE ---
 st.markdown("""
 <style>
-/* 1. Hapus Streamlit Header/Footer */
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-header {visibility: hidden;}
 
 /* 2. Styling Primary Button */
 .stButton>button {
