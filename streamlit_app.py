@@ -249,7 +249,7 @@ if menu_selection == "Deep Learning (LIVE)":
 elif menu_selection == "Machine Learning (LIVE)":
     
     st.header("Model Machine Learning (RF, DT, LR)")
-    st.warning("⚠️ Perhatian: Model ML sangat sensitif terhadap versi. Hasil mungkin tidak muncul jika file .pkl tidak kompatibel.")
+    st.info("Nilai prediksi dihitung secara *live* menggunakan model Machine Learning.")
     
     input_data = get_input_form() 
     
@@ -267,7 +267,19 @@ elif menu_selection == "Machine Learning (LIVE)":
         if results:
             results_df = pd.DataFrame(results)
             results_df['Prediksi Nilai'] = results_df['Prediksi Nilai'].astype(float)
-            st.markdown("### Hasil Prediksi Live (ML)")
-            st.dataframe(results_df.sort_values(by="Prediksi Nilai", ascending=False).set_index("Algoritma"), use_container_width=True)
+            
+            # Tampilkan Hasil dengan Metrik dan Expander
+            st.success("✅ Prediksi Selesai!")
+            col_res_1, col_res_2 = st.columns([1, 3])
+            
+            best_score = results_df["Prediksi Nilai"].max()
+            
+            with col_res_1:
+                 st.metric(label="Nilai Prediksi Tertinggi", value=f"{best_score:.2f} / 100")
+            
+            with st.expander("Lihat Perbandingan Detail Semua Model DL", expanded=True):
+                st.dataframe(results_df.sort_values(by="Prediksi Nilai", ascending=False).set_index("Algoritma"), use_container_width=True)
+            if best_score >= 80:
+                st.balloons()
         else:
             st.error("Gagal mendapatkan hasil dari model ML. File .pkl tidak kompatibel.")
