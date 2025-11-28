@@ -13,7 +13,7 @@ Proyek ini bertindak sebagai alat modern untuk diperlihatkan kepada siswa *fores
 <img src='doc/quran.png' width='auto' height='auto' style='margin-right: 10px'>
 </div>
 
-## Technologies Used
+## Teknologi yang Digunakan
 
 - [Python](https://www.python.org/)
 - [Deep Learning](https://www.tensorflow.org/guide/keras)
