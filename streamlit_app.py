@@ -236,7 +236,7 @@ if menu_selection == "Deep Learning (LIVE)":
             with col_res_1:
                  st.metric(label="Nilai Prediksi Tertinggi", value=f"{best_score:.2f} / 100")
             
-            with st.expander("Lihat Perbandingan Detail Semua Model DL", expanded=True):
+            with st.expander("Lihat Perbandingan Detail Semua Model Deep Learning", expanded=True):
                  st.dataframe(results_df.sort_values(by="Prediksi Nilai", ascending=False).set_index("Algoritma"), use_container_width=True)
             
             if best_score >= 80:
@@ -273,7 +273,7 @@ elif menu_selection == "Machine Learning (LIVE)":
             with col_res_1:
                  st.metric(label="Nilai Prediksi Tertinggi", value=f"{best_score:.2f} / 100")
             
-            with st.expander("Lihat Perbandingan Detail Semua Model DL", expanded=True):
+            with st.expander("Lihat Perbandingan Detail Semua Model Machine Learning", expanded=True):
                 st.dataframe(results_df.sort_values(by="Prediksi Nilai", ascending=False).set_index("Algoritma"), use_container_width=True)
             if best_score >= 80:
                 st.balloons()
