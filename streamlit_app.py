@@ -32,16 +32,18 @@ DL_3D_CNN = ["CNN"]
 
 # Definisikan OPSI KATEGORI untuk UI
 CATEGORICAL_OPTIONS = {
-    'gender': ['Perempuan', 'Laki-laki'], 'part_time_job': ['Tidak', 'Ya'],
+    'gender': ['Perempuan', 'Laki-laki'],
+    'part_time_job': ['Tidak', 'Ya'],
     'diet_quality': ['Baik', 'Cukup', 'Buruk', 'Rata-rata'],
     'parental_education_level': ['Master', 'Sarjana (Bachelor)', 'SMA/Sederajat', 'Kuliah Non-Gelar', 'Doktor (PhD)'],
-    'internet_quality': ['Baik', 'Rata-rata', 'Buruk'], 'extracurricular_participation': ['Ya', 'Tidak']
+    'internet_quality': ['Baik', 'Rata-rata', 'Buruk'],
+    'extracurricular_participation': ['Ya', 'Tidak']
 }
 
 
 @st.cache_resource
 def load_all_assets():
-    """Memuat Scaler dan SEMUA Model (ML dan DL)."""
+    """Memuat Scaler dan Model DL (Model ML digantikan placeholder)."""
     models = {}
     
     try:
@@ -72,7 +74,7 @@ def preprocess_input(input_data, scaler):
     """Mengambil input form, memfilter 5 fitur utama, dan mengembalikan Array NumPy SCALE dan DataFrame MENTAH."""
     
     full_input_df = pd.DataFrame([input_data])
-    input_df_mentah = full_input_df[FEATURES_USED] # <-- Dataframe untuk ML
+    input_df_mentah = full_input_df[FEATURES_USED] # <-- MENTAH untuk ML
     
     # Scaling manual untuk model DL
     X_scaled = scaler.transform(input_df_mentah)
@@ -81,25 +83,25 @@ def preprocess_input(input_data, scaler):
 
 
 def predict_score(model_name, model, input_df_mentah, X_scaled):
-    """Melakukan prediksi, menggunakan input mentah (DataFrame) untuk ML dan Array (NumPy) untuk DL."""
+    """Melakukan prediksi, menyesuaikan reshape untuk DL atau menggunakan 2D (DNN/ML)."""
 
     # 1. Tentukan input akhir X_final
     if model_name in ML_PATHS:
-        # ML: Input harus DataFrame MENTAH
+        # ML: Input harus DataFrame MENTAH (paling robust)
         X_final = input_df_mentah 
     elif model_name in DL_3D_STANDARD: 
-        # LSTM: Input Array Scaled + Reshape 3D
+        # LSTM
         X_final = X_scaled.reshape((X_scaled.shape[0], 1, X_scaled.shape[1]))
     elif model_name in DL_3D_CNN:
-        # CNN: Input Array Scaled + Reshape (1, 5, 1)
+        # CNN
         X_final = X_scaled.reshape((X_scaled.shape[0], X_scaled.shape[1], 1))
     else: 
-        # DNN: Input Array Scaled 2D
+        # DNN
         X_final = X_scaled
     
     # 2. Lakukan Prediksi
     try:
-        prediction = model.predict(X_final)
+        prediction = model.predict(X_final, verbose=0)
     except Exception as e:
         return None
     
@@ -161,7 +163,8 @@ def get_input_form():
         "sleep_hours": sleep_hours, "exercise_frequency": exercise_freq,
         'gender': gender, 'part_time_job': part_time_job, 'diet_quality': diet_quality,
         'parental_education_level': parental_education_level, 
-        'internet_quality': st.selectbox("Kualitas Internet di tempat tinggal Anda?", CATEGORICAL_OPTIONS['internet_input'], key='internet_input'),
+        # FIX: Menggunakan KEY yang BENAR untuk lookup OPSI
+        'internet_quality': st.selectbox("Kualitas Internet di tempat tinggal Anda?", CATEGORICAL_OPTIONS['internet_quality'], key='internet_input'), 
         'extracurricular_participation': st.radio("Apakah Anda ikut ekstrakurikuler?", CATEGORICAL_OPTIONS['extracurricular_participation'], horizontal=True, key='extra_input'),
         'age': age, 
         'social_media_hours': st.number_input("Berapa jam rata-rata Anda menggunakan media sosial per hari?", 0.0, 6.0, 2.0, step=0.5, key='socmed_input'),
@@ -201,7 +204,7 @@ if menu_selection == "Deep Learning (LIVE)":
 elif menu_selection == "Machine Learning (LIVE)":
     
     st.header("Model Machine Learning (RF, DT, LR)")
-    st.info("Nilai prediksi dihitung secara *live* menggunakan model Machine Learning.")
+    st.warning("⚠️ Perhatian: Model ML sangat sensitif terhadap versi. Hasil mungkin tidak muncul jika file .pkl tidak kompatibel.")
     
     input_data = get_input_form() 
     
@@ -222,4 +225,4 @@ elif menu_selection == "Machine Learning (LIVE)":
             st.markdown("### Hasil Prediksi Live (ML)")
             st.dataframe(results_df.sort_values(by="Prediksi Nilai", ascending=False).set_index("Algoritma"), use_container_width=True)
         else:
-            st.error("Gagal mendapatkan hasil dari model ML. File .pkl Anda tidak kompatibel.")
+            st.error("Gagal mendapatkan hasil dari model ML. File .pkl tidak kompatibel.")
