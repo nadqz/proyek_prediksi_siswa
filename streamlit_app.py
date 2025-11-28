@@ -4,9 +4,40 @@ import numpy as np
 import joblib
 from tensorflow.keras.models import load_model
 
+# --- INJEKSI CSS UNTUK TAMPILAN WEBSITE ---
+# Menghilangkan Menu Streamlit default dan mengatur margin
+st.markdown("""
+<style>
+/* 1. Hapus Streamlit Header/Footer */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+
+/* 2. Styling Primary Button */
+.stButton>button {
+    background-color: #007BFF; /* Warna biru primer */
+    color: white;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: bold;
+    border: none;
+}
+/* 3. Atur Margin dan Padding Kontainer Utama */
+.css-1d391kg {
+    padding-top: 1rem;
+    padding-bottom: 5rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
 # ==============================================================================
-# 1. SETUP ASET MODEL DAN DATA
+# 1. SETUP ASET MODEL DAN DATA (TETAP SAMA)
 # ==============================================================================
+FEATURES_USED = [
+    "study_hours_per_day", "attendance_percentage", "mental_health_rating", 
+    "sleep_hours", "exercise_frequency"
+]
 
 # Definisikan 5 Fitur yang BENAR-BENAL DIGUNAKAN OLEH MODEL
 FEATURES_USED = [
@@ -112,20 +143,18 @@ def predict_score(model_name, model, input_df_mentah, X_scaled):
         return float(prediction[0]) 
 
 # ==============================================================================
-# 3. NAVIGASI STREAMLIT DAN HALAMAN
+# 3. NAVIGASI STREAMLIT DAN HALAMAN (DESAIN BARU)
 # ==============================================================================
 
-st.set_page_config(page_title="Prediksi Nilai Siswa", layout="wide")
-st.sidebar.title("Navigasi Algoritma")
+st.sidebar.title("🧠 Prediksi Siswa")
 
 menu_selection = st.sidebar.radio(
     "Pilih Fokus Prediksi:",
-    ["Deep Learning (LIVE)", "Machine Learning (LIVE)"]
+    ["Deep Learning (LIVE)", "Machine Learning (STATIS)"]
 )
 
-st.title("🎯 Proyek Benchmarking Prediksi Nilai")
+st.title("💡 Proyek Benchmarking Model Akademik")
 st.markdown("---")
-
 
 # --- DEFINISI FORM INPUT (Digunakan di kedua halaman) ---
 def get_input_form():
@@ -171,8 +200,7 @@ def get_input_form():
     }
     return input_data
 
-
-# --- LOGIKA HALAMAN ---
+# --- LOGIKA HALAMAN DL (LIVE) ---
 
 if menu_selection == "Deep Learning (LIVE)":
     
@@ -181,29 +209,49 @@ if menu_selection == "Deep Learning (LIVE)":
     
     input_data = get_input_form()
     
-    if st.button("Hitung Prediksi DL", type="primary"):
-        input_df_mentah, X_scaled = preprocess_input(input_data, SCALER)
+    # 4. Tombol Aksi & Output yang Lebih Menarik
+    st.markdown("##") # Memberi spasi vertikal
+    if st.button("Hitung Prediksi & Bandingkan Hasil", type="primary"):
+        # ... (Logika prediksi DL) ...
+        X_scaled = preprocess_input(input_data, SCALER)
         results = []
         
-        for name in DL_PATHS.keys():
-            model = MODELS.get(name)
-            if model:
-                prediction = predict_score(name, model, input_df_mentah, X_scaled)
-                if prediction is not None:
-                    results.append({"Algoritma": name, "Prediksi Nilai": f"{prediction:.2f}"})
-
+        # ... (Loop prediksi) ...
+        
         if results:
             results_df = pd.DataFrame(results)
             results_df['Prediksi Nilai'] = results_df['Prediksi Nilai'].astype(float)
-            st.markdown("### Hasil Prediksi Live (DL)")
-            st.dataframe(results_df.sort_values(by="Prediksi Nilai", ascending=False).set_index("Algoritma"), use_container_width=True)
-        else:
-            st.error("Gagal mendapatkan hasil dari model DL. Cek log error deployment.")
+            
+            # Cari Model Terbaik
+            best_score = results_df["Prediksi Nilai"].max()
+            
+            # Tampilkan METRIC & TABEL
+            st.success("✅ Prediksi Selesai! Model Terbaik ditemukan.")
+            
+            col_met_1, col_met_2, col_met_3 = st.columns(3)
+            
+            # Tampilkan Nilai Metrik Terbaik Secara Mencolok
+            with col_met_1:
+                st.metric(
+                    label="Nilai Prediksi Tertinggi", 
+                    value=f"{best_score:.2f} / 100", 
+                    delta="Saran Akademik Diberikan"
+                )
+            
+            # Tampilkan Semua Hasil dalam Container Berbingkai
+            with st.expander("Lihat Perbandingan Detail Semua Model", expanded=True):
+                st.dataframe(
+                    results_df.sort_values(by="Prediksi Nilai", ascending=False).set_index("Algoritma"),
+                    use_container_width=True
+                )
+                
+            if best_score >= 80:
+                st.balloons()
 
 elif menu_selection == "Machine Learning (LIVE)":
     
     st.header("Model Machine Learning (RF, DT, LR)")
-    st.info("Nilai prediksi dihitung secara *live* menggunakan model Machine Learning.")
+    st.warning("⚠️ Perhatian: Model ML sangat sensitif terhadap versi. Hasil mungkin tidak muncul jika file .pkl tidak kompatibel.")
     
     input_data = get_input_form() 
     
