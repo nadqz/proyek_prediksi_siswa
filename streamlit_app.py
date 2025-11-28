@@ -43,7 +43,7 @@ FEATURES_USED = [
     "sleep_hours", "exercise_frequency"
 ]
 
-# ... (Semua Path dan Definisi OPSI KATEGORI) ...
+# Path files dan Konfigurasi
 ML_PATHS = {
     "Random Forest": 'ML_MODELS/random_forest_model.pkl',
     "Decision Tree": 'ML_MODELS/decision_tree_model.pkl',
@@ -66,8 +66,9 @@ CATEGORICAL_OPTIONS = {
 
 @st.cache_resource
 def load_all_assets():
-    # ... (Loading logic tetap sama) ...
+    """Memuat Scaler dan Model-Model untuk diuji LIVE."""
     models = {}
+    
     try:
         scaler = joblib.load('PREPROCESSOR/minmax_scaler.pkl')
     except FileNotFoundError: st.error(f"Error: Scaler file not found."); st.stop()
@@ -75,11 +76,14 @@ def load_all_assets():
     all_paths = {**ML_PATHS, **DL_PATHS}
     for name, path in all_paths.items():
         try:
-            if name in DL_PATHS: models[name] = load_model(path)
-            else: models[name] = joblib.load(path)
+            if name in DL_PATHS:
+                models[name] = load_model(path)
+            else:
+                models[name] = joblib.load(path)
         except Exception as e:
-            st.warning(f"Error loading {name}. Skipping.")
+            st.warning(f"Error loading {name} from {path}. Model ini mungkin GAGAL LIVE. Log: {e}")
             models[name] = None 
+
     return models, scaler
 
 MODELS, SCALER = load_all_assets()
@@ -91,7 +95,7 @@ MODELS, SCALER = load_all_assets()
 
 def preprocess_input(input_data, scaler):
     full_input_df = pd.DataFrame([input_data])
-    input_df_filtered = full_input_df[FEATURES_USED]
+    input_df_filtered = full_input_df[FEATURES_USED] 
     X_scaled = scaler.transform(input_df_filtered)
     return input_df_filtered, X_scaled 
 
