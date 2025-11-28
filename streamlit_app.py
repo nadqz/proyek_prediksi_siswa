@@ -203,7 +203,7 @@ if menu_selection == "Deep Learning (LIVE)":
 elif menu_selection == "Machine Learning (LIVE)":
     
     st.header("Model Machine Learning (RF, DT, LR)")
-    st.warning("⚠️ Perhatian: Model ML sangat sensitif terhadap versi. Hasil mungkin tidak muncul jika file .pkl tidak kompatibel.")
+    st.info("Nilai prediksi dihitung secara *live* menggunakan model Machine Learning.")
     
     input_data = get_input_form() 
     
