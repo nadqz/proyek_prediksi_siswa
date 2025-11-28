@@ -94,30 +94,45 @@ MODELS, SCALER = load_all_assets()
 # ==============================================================================
 
 def preprocess_input(input_data, scaler):
+    """Mengambil input form, memfilter 5 fitur utama, dan mengembalikan Array NumPy SCALE dan DataFrame MENTAH."""
+    
     full_input_df = pd.DataFrame([input_data])
-    input_df_filtered = full_input_df[FEATURES_USED] 
-    X_scaled = scaler.transform(input_df_filtered)
-    return input_df_filtered, X_scaled 
-
+    input_df_mentah = full_input_df[FEATURES_USED] # <-- DataFrame MENTAH untuk ML
+    
+    # Scaling manual untuk model DL
+    X_scaled = scaler.transform(input_df_mentah) # <-- Array Scaled untuk DL
+    
+    return input_df_mentah, X_scaled 
 def predict_score(model_name, model, input_df_mentah, X_scaled):
+    """Melakukan prediksi, menggunakan input mentah (DataFrame) untuk ML dan Array (NumPy) untuk DL."""
+
+    # 1. Tentukan input akhir X_final
     if model_name in ML_PATHS:
+        # ML: Input harus DataFrame MENTAH (paling robust di environment Anda)
         X_final = input_df_mentah 
     elif model_name in DL_3D_STANDARD: 
+        # LSTM
         X_final = X_scaled.reshape((X_scaled.shape[0], 1, X_scaled.shape[1]))
     elif model_name in DL_3D_CNN:
+        # CNN
         X_final = X_scaled.reshape((X_scaled.shape[0], X_scaled.shape[1], 1))
     else: 
+        # DNN
         X_final = X_scaled
     
+    # 2. Lakukan Prediksi
     try:
-        prediction = model.predict(X_final, verbose=0)
+        prediction = model.predict(X_final)
     except Exception as e:
+        # Menangkap error saat prediksi (terutama dari model .pkl yang rusak)
+        st.error(f"Prediction Failed for {model_name}. Log: {type(e).__name__}")
         return None
     
+    # 3. Ambil nilai prediksi
     if model_name in DL_PATHS:
         return float(prediction[0][0]) 
     else:
-        return float(prediction[0]) 
+        return float(prediction[0])  
 
 # ==============================================================================
 # 3. NAVIGASI STREAMLIT DAN HALAMAN
