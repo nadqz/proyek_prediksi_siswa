@@ -1,9 +1,9 @@
 [![Demontration Web](https://img.shields.io/badge/Demonstration%20-Web-yellow)](https://aplikasi-prediksi-nilai-siswa.streamlit.app/)
 ![Banner](doc/header.png)
 
-# Sistem Prediksi Nilai Akademik
+# Sistem Prediksi Nilai Akademik 💡
 
-**💡**Proyek ini bertujuan untuk mengatasi tantangan prediktabilitas akademik dengan menyediakan Sistem Prediksi Nilai Akademik. Menggunakan total enam algoritma (LSTM, CNN, DNN, Random Forest, Decision Tree, Linear Regression) untuk membandingkan hasil prediksi. Menyediakan perhitungan real-time dan akurat melalui semua modelnya.
+Proyek ini bertujuan untuk mengatasi tantangan prediktabilitas akademik dengan menyediakan Sistem Prediksi Nilai Akademik. Menggunakan total enam algoritma (LSTM, CNN, DNN, Random Forest, Decision Tree, Linear Regression) untuk membandingkan hasil prediksi. Menyediakan perhitungan real-time dan akurat melalui semua modelnya.
 
 ## Topik dan Motivasi
 
