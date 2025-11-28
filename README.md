@@ -1,3 +1,4 @@
+[![Demontration Web](https://img.shields.io/badge/Demonstration%20-Web-yellow)](https://trust-checker.vercel.app/)
 ![Banner](doc/header.png)
 
 # Sistem Prediksi Nilai Akademik
