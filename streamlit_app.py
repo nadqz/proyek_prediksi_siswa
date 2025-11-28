@@ -5,7 +5,6 @@ import joblib
 from tensorflow.keras.models import load_model
 
 # --- INJEKSI CSS UNTUK TAMPILAN WEBSITE ---
-# Menghilangkan Menu Streamlit default dan mengatur margin
 st.markdown("""
 <style>
 /* 1. Hapus Streamlit Header/Footer */
@@ -30,14 +29,9 @@ header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-
 # ==============================================================================
-# 1. SETUP ASET MODEL DAN DATA (TETAP SAMA)
+# 1. SETUP ASET MODEL DAN DATA
 # ==============================================================================
-FEATURES_USED = [
-    "study_hours_per_day", "attendance_percentage", "mental_health_rating", 
-    "sleep_hours", "exercise_frequency"
-]
 
 # Definisikan 5 Fitur yang BENAR-BENAL DIGUNAKAN OLEH MODEL
 FEATURES_USED = [
@@ -103,12 +97,12 @@ def preprocess_input(input_data, scaler):
     """Mengambil input form, memfilter 5 fitur utama, dan mengembalikan Array NumPy SCALE dan DataFrame MENTAH."""
     
     full_input_df = pd.DataFrame([input_data])
-    input_df_mentah = full_input_df[FEATURES_USED] # <-- DataFrame MENTAH untuk ML
+    input_df_mentah = full_input_df[FEATURES_USED] # <-- MENTAH untuk ML
     
     # Scaling manual untuk model DL
-    X_scaled = scaler.transform(input_df_mentah) # <-- Array Scaled untuk DL
+    X_scaled = scaler.transform(input_df_mentah)
     
-    return input_df_mentah, X_scaled 
+    return input_df_mentah, X_scaled # Mengembalikan DataFrame Mentah dan Array Scaled
 
 
 def predict_score(model_name, model, input_df_mentah, X_scaled):
@@ -132,8 +126,6 @@ def predict_score(model_name, model, input_df_mentah, X_scaled):
     try:
         prediction = model.predict(X_final)
     except Exception as e:
-        # Menangkap error saat prediksi (terutama dari model .pkl yang rusak)
-        st.error(f"Prediction Failed for {model_name}. Log: {type(e).__name__}")
         return None
     
     # 3. Ambil nilai prediksi
@@ -143,18 +135,20 @@ def predict_score(model_name, model, input_df_mentah, X_scaled):
         return float(prediction[0]) 
 
 # ==============================================================================
-# 3. NAVIGASI STREAMLIT DAN HALAMAN (DESAIN BARU)
+# 3. NAVIGASI STREAMLIT DAN HALAMAN
 # ==============================================================================
 
-st.sidebar.title("🧠 Prediksi Siswa")
+st.set_page_config(page_title="Prediksi Nilai Siswa", layout="wide")
+st.sidebar.title("Navigasi Algoritma")
 
 menu_selection = st.sidebar.radio(
     "Pilih Fokus Prediksi:",
-    ["Deep Learning (LIVE)", "Machine Learning (STATIS)"]
+    ["Deep Learning (LIVE)", "Machine Learning (LIVE)"]
 )
 
-st.title("💡 Proyek Benchmarking Model Akademik")
+st.title("🎯 Proyek Benchmarking Prediksi Nilai")
 st.markdown("---")
+
 
 # --- DEFINISI FORM INPUT (Digunakan di kedua halaman) ---
 def get_input_form():
@@ -200,7 +194,8 @@ def get_input_form():
     }
     return input_data
 
-# --- LOGIKA HALAMAN DL (LIVE) ---
+
+# --- LOGIKA HALAMAN ---
 
 if menu_selection == "Deep Learning (LIVE)":
     
@@ -209,44 +204,24 @@ if menu_selection == "Deep Learning (LIVE)":
     
     input_data = get_input_form()
     
-    # 4. Tombol Aksi & Output yang Lebih Menarik
-    st.markdown("##") # Memberi spasi vertikal
-    if st.button("Hitung Prediksi & Bandingkan Hasil", type="primary"):
-        # ... (Logika prediksi DL) ...
-        X_scaled = preprocess_input(input_data, SCALER)
+    if st.button("Hitung Prediksi DL", type="primary"):
+        input_df_mentah, X_scaled = preprocess_input(input_data, SCALER)
         results = []
         
-        # ... (Loop prediksi) ...
-        
+        for name in DL_PATHS.keys():
+            model = MODELS.get(name)
+            if model:
+                prediction = predict_score(name, model, input_df_mentah, X_scaled)
+                if prediction is not None:
+                    results.append({"Algoritma": name, "Prediksi Nilai": f"{prediction:.2f}"})
+
         if results:
             results_df = pd.DataFrame(results)
             results_df['Prediksi Nilai'] = results_df['Prediksi Nilai'].astype(float)
-            
-            # Cari Model Terbaik
-            best_score = results_df["Prediksi Nilai"].max()
-            
-            # Tampilkan METRIC & TABEL
-            st.success("✅ Prediksi Selesai! Model Terbaik ditemukan.")
-            
-            col_met_1, col_met_2, col_met_3 = st.columns(3)
-            
-            # Tampilkan Nilai Metrik Terbaik Secara Mencolok
-            with col_met_1:
-                st.metric(
-                    label="Nilai Prediksi Tertinggi", 
-                    value=f"{best_score:.2f} / 100", 
-                    delta="Saran Akademik Diberikan"
-                )
-            
-            # Tampilkan Semua Hasil dalam Container Berbingkai
-            with st.expander("Lihat Perbandingan Detail Semua Model", expanded=True):
-                st.dataframe(
-                    results_df.sort_values(by="Prediksi Nilai", ascending=False).set_index("Algoritma"),
-                    use_container_width=True
-                )
-                
-            if best_score >= 80:
-                st.balloons()
+            st.markdown("### Hasil Prediksi Live (DL)")
+            st.dataframe(results_df.sort_values(by="Prediksi Nilai", ascending=False).set_index("Algoritma"), use_container_width=True)
+        else:
+            st.error("Gagal mendapatkan hasil dari model DL. Cek log error deployment.")
 
 elif menu_selection == "Machine Learning (LIVE)":
     
