@@ -34,9 +34,9 @@ Proyek ini bertindak sebagai alat modern untuk diperlihatkan kepada siswa *fores
 
 Kami menyediakan daftar artikel jurnal, makalah konferensi, dan sumber daya lain yang telah menginspirasi proyek kami:
 
-[1] Y. Lin, H. Chen, W. Xia, F. Lin, Z. Wang, and Y. Liu, “A Comprehensive Survey on Deep Learning Techniques in Educational Data Mining,” Data Sci Eng, Jul. 2025, doi: 10.1007/s41019-025-00303-z.</br>
-[2]	R. Ordoñez-Avila, J. Meza, and S. Ventura, “Mining autonomous student patterns score on LMS within online higher education,” PeerJ Comput Sci, vol. 11, 2025, doi: 10.7717/peerj-cs.2855.</br>
-[3]	F. T. Johora, M. N. Hasan, A. Rajbongshi, M. Ashrafuzzaman, and F. Akter, “An explainable AI-based approach for predicting undergraduate students academic performance,” Array, vol. 26, p. 100384, Jul. 2025, doi: 10.1016/j.array.2025.100384.</br>
+- Y. Lin, H. Chen, W. Xia, F. Lin, Z. Wang, and Y. Liu, “A Comprehensive Survey on Deep Learning Techniques in Educational Data Mining,” Data Sci Eng, Jul. 2025, doi: 10.1007/s41019-025-00303-z.</br>
+- R. Ordoñez-Avila, J. Meza, and S. Ventura, “Mining autonomous student patterns score on LMS within online higher education,” PeerJ Comput Sci, vol. 11, 2025, doi: 10.7717/peerj-cs.2855.</br>
+- F. T. Johora, M. N. Hasan, A. Rajbongshi, M. Ashrafuzzaman, and F. Akter, “An explainable AI-based approach for predicting undergraduate students academic performance,” Array, vol. 26, p. 100384, Jul. 2025, doi: 10.1016/j.array.2025.100384.</br>
 [4]	E. Ahmad Zaki Hamidi et al., “Prediksi Semester Tugas Akhir Mahasiswa Berdasarkan Transkrip Nilai Menggunakan Linear Regression, Kernel Ridge Regression dan Decision Tree Regression (Eki Ahmad Zaki Hamidi, Edi Mulyana, Dilla Restu Agusthiani, Aldi Fahruzi Muharam : Halaman 53-62) Prediksi Semester Tugas Akhir Mahasiswa Berdasarkan Transkrip Nilai Menggunakan Linear Regression, Kernel Ridge Regression dan Decision Tree Regression.”</br>
 [5]	J. S. Pedada, “Predicting test scores using random forest regression,” Aug. 27, 2025. doi: 10.21203/rs.3.rs-7455681/v1.</br>
 [6]	M. Sulehu, W. Wisda, F. Wanita, and M. Markani, “Optimasi Prediksi Kelulusan Mahasiswa Menggunakan Random Forest untuk Meningkatkan Tingkat Retensi,” Jurnal Minfo Polgan, vol. 13, no. 2, pp. 2364–2374, Jan. 2025, doi: 10.33395/jmp.v13i2.14472.</br>
