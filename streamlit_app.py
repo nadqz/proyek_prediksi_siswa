@@ -41,24 +41,24 @@ CATEGORICAL_OPTIONS = {
 
 @st.cache_resource
 def load_all_assets():
-    """Memuat Scaler dan Model DL (Model ML digantikan placeholder)."""
+    """Memuat Scaler dan Model-Model untuk diuji LIVE."""
     models = {}
     
     try:
         scaler = joblib.load('PREPROCESSOR/minmax_scaler.pkl')
     except FileNotFoundError: st.error(f"Error: Scaler file not found."); st.stop()
     
-    # MUAT MODEL DL LIVE
-    for name, path in DL_PATHS.items():
+    all_paths = {**ML_PATHS, **DL_PATHS}
+    for name, path in all_paths.items():
         try:
-            models[name] = load_model(path)
+            if name in DL_PATHS:
+                models[name] = load_model(path)
+            else:
+                models[name] = joblib.load(path)
         except Exception as e:
-            st.warning(f"Error loading DL Model {name}. Skipping.")
+            st.warning(f"Error loading {name} from {path}. Model ini mungkin GAGAL LIVE. Log: {e}")
+            models[name] = None 
 
-    # GANTI MODEL ML DENGAN PLACEHOLDER STATIS
-    for name in ML_PATHS.keys():
-        models[name] = "STATIC_MODEL"
-        
     return models, scaler
 
 MODELS, SCALER = load_all_assets()
@@ -69,36 +69,47 @@ MODELS, SCALER = load_all_assets()
 # ==============================================================================
 
 def preprocess_input(input_data, scaler):
-    """Mengambil input form, memfilter 5 fitur utama, dan mengembalikan Array NumPy yang sudah di-scale."""
+    """Mengambil input form, memfilter 5 fitur utama, dan mengembalikan Array NumPy SCALE dan DataFrame MENTAH."""
     
     full_input_df = pd.DataFrame([input_data])
-    input_df_filtered = full_input_df[FEATURES_USED]
-    X_scaled = scaler.transform(input_df_filtered)
+    input_df_mentah = full_input_df[FEATURES_USED] # <-- DataFrame MENTAH untuk ML
     
-    return X_scaled 
+    # Scaling manual untuk model DL
+    X_scaled = scaler.transform(input_df_mentah) # <-- Array Scaled untuk DL
+    
+    return input_df_mentah, X_scaled 
 
-def predict_score(model_name, model, X_scaled):
-    """Melakukan prediksi, menyesuaikan reshape untuk DL atau mengambil nilai statis untuk ML."""
 
-    # --- LOGIKA STATIC (ML) ---
-    if model == "STATIC_MODEL":
-        STATIC_ML_RESULTS = {"Random Forest": 80.50, "Decision Tree": 75.20, "Linear Regression": 71.30}
-        return STATIC_ML_RESULTS.get(model_name, 70.00) 
+def predict_score(model_name, model, input_df_mentah, X_scaled):
+    """Melakukan prediksi, menggunakan input mentah (DataFrame) untuk ML dan Array (NumPy) untuk DL."""
 
-    # --- LOGIKA LIVE (DL) ---
-    if model_name in DL_3D_STANDARD: 
+    # 1. Tentukan input akhir X_final
+    if model_name in ML_PATHS:
+        # ML: Input harus DataFrame MENTAH (paling robust di environment Anda)
+        X_final = input_df_mentah 
+    elif model_name in DL_3D_STANDARD: 
+        # LSTM
         X_final = X_scaled.reshape((X_scaled.shape[0], 1, X_scaled.shape[1]))
     elif model_name in DL_3D_CNN:
+        # CNN
         X_final = X_scaled.reshape((X_scaled.shape[0], X_scaled.shape[1], 1))
     else: 
+        # DNN
         X_final = X_scaled
     
+    # 2. Lakukan Prediksi
     try:
-        prediction = model.predict(X_final, verbose=0)
+        prediction = model.predict(X_final)
     except Exception as e:
+        # Menangkap error saat prediksi (terutama dari model .pkl yang rusak)
+        st.error(f"Prediction Failed for {model_name}. Log: {type(e).__name__}")
         return None
     
-    return float(prediction[0][0]) 
+    # 3. Ambil nilai prediksi
+    if model_name in DL_PATHS:
+        return float(prediction[0][0]) 
+    else:
+        return float(prediction[0]) 
 
 # ==============================================================================
 # 3. NAVIGASI STREAMLIT DAN HALAMAN
@@ -109,7 +120,7 @@ st.sidebar.title("Navigasi Algoritma")
 
 menu_selection = st.sidebar.radio(
     "Pilih Fokus Prediksi:",
-    ["Deep Learning (LIVE)", "Machine Learning (STATIS)"]
+    ["Deep Learning (LIVE)", "Machine Learning (LIVE)"]
 )
 
 st.title("🎯 Proyek Benchmarking Prediksi Nilai")
@@ -152,8 +163,7 @@ def get_input_form():
         "sleep_hours": sleep_hours, "exercise_frequency": exercise_freq,
         'gender': gender, 'part_time_job': part_time_job, 'diet_quality': diet_quality,
         'parental_education_level': parental_education_level, 
-        # FIX: Menggunakan KEY yang BENAR untuk lookup OPSI
-        'internet_quality': st.selectbox("Kualitas Internet di tempat tinggal Anda?", CATEGORICAL_OPTIONS['internet_quality'], key='internet_input'), 
+        'internet_quality': st.selectbox("Kualitas Internet di tempat tinggal Anda?", CATEGORICAL_OPTIONS['internet_quality'], key='internet_input'),
         'extracurricular_participation': st.radio("Apakah Anda ikut ekstrakurikuler?", CATEGORICAL_OPTIONS['extracurricular_participation'], horizontal=True, key='extra_input'),
         'age': age, 
         'social_media_hours': st.number_input("Berapa jam rata-rata Anda menggunakan media sosial per hari?", 0.0, 6.0, 2.0, step=0.5, key='socmed_input'),
@@ -172,13 +182,13 @@ if menu_selection == "Deep Learning (LIVE)":
     input_data = get_input_form()
     
     if st.button("Hitung Prediksi DL", type="primary"):
-        X_scaled = preprocess_input(input_data, SCALER)
+        input_df_mentah, X_scaled = preprocess_input(input_data, SCALER)
         results = []
         
         for name in DL_PATHS.keys():
             model = MODELS.get(name)
-            if model and model != "STATIC_MODEL":
-                prediction = predict_score(name, model, X_scaled)
+            if model:
+                prediction = predict_score(name, model, input_df_mentah, X_scaled)
                 if prediction is not None:
                     results.append({"Algoritma": name, "Prediksi Nilai": f"{prediction:.2f}"})
 
@@ -190,23 +200,28 @@ if menu_selection == "Deep Learning (LIVE)":
         else:
             st.error("Gagal mendapatkan hasil dari model DL. Cek log error deployment.")
 
-elif menu_selection == "Machine Learning (STATIS)":
+elif menu_selection == "Machine Learning (LIVE)":
     
     st.header("Model Machine Learning (RF, DT, LR)")
-    st.warning("⚠️ Semua model ML gagal dimuat. Hasil di bawah adalah **nilai statistik *placeholder* terbaik** dari fase training.")
+    st.warning("⚠️ Perhatian: Model ML sangat sensitif terhadap versi. Hasil mungkin tidak muncul jika file .pkl tidak kompatibel.")
     
-    # Tampilkan Form Input (Hanya untuk konsistensi UI)
     input_data = get_input_form() 
     
-    if st.button("Tampilkan Hasil Statistik", type="primary"):
-        # Siapkan data statis untuk ditampilkan
-        static_results = []
-        for name, score in STATIC_ML_RESULTS.items():
-             static_results.append({
-                 "Algoritma": name,
-                 "Prediksi Nilai Terbaik": f"{score:.2f}",
-                 "Catatan": "Nilai Statis/Placeholder"
-             })
-             
-        st.markdown("### Hasil Statistik Terbaik (ML)")
-        st.dataframe(pd.DataFrame(static_results).set_index("Algoritma"), use_container_width=True)
+    if st.button("Hitung Prediksi ML", type="primary"):
+        input_df_mentah, X_scaled = preprocess_input(input_data, SCALER)
+        results = []
+        
+        for name in ML_PATHS.keys():
+            model = MODELS.get(name)
+            if model:
+                prediction = predict_score(name, model, input_df_mentah, X_scaled)
+                if prediction is not None:
+                    results.append({"Algoritma": name, "Prediksi Nilai": f"{prediction:.2f}"})
+        
+        if results:
+            results_df = pd.DataFrame(results)
+            results_df['Prediksi Nilai'] = results_df['Prediksi Nilai'].astype(float)
+            st.markdown("### Hasil Prediksi Live (ML)")
+            st.dataframe(results_df.sort_values(by="Prediksi Nilai", ascending=False).set_index("Algoritma"), use_container_width=True)
+        else:
+            st.error("Gagal mendapatkan hasil dari model ML. File .pkl tidak kompatibel.")
