@@ -1,7 +1,9 @@
 ![Banner](doc/header.png)
 
 [![Demontration Web](https://img.shields.io/badge/Demonstration%20-Web-yellow)](https://aplikasi-prediksi-nilai-siswa.streamlit.app/)
+
 [Machine Learning](https://colab.research.google.com/drive/1ZtjwKgPFdE6cZ7iPvKhF3kLMKFEpIRC_?usp=sharing)
+
 [Deep Learning](https://colab.research.google.com/drive/1P_c-LwpLDDR5-cfjo8N1zliXrdzly8hS?usp=sharing)
 # Sistem Prediksi Nilai Akademik 💡
 
