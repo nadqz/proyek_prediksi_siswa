@@ -25,9 +25,6 @@ Proyek ini bertindak sebagai alat modern untuk diperlihatkan kepada siswa *fores
 - [Streamlit](https://streamlit.io/)
 - [Dataset](student_habits_performance.csv)
 
-## Paper
-
-
 ## Team Kami
 - Ismail Muhammad Ahmadi (1227050062)
 - Mochammad Khaerul Ilman	(1227050073)
