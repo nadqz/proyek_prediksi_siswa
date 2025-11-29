@@ -1,9 +1,9 @@
 ![Banner](doc/header.png)
 [![Demontration Web](https://img.shields.io/badge/Demonstration%20-Web-yellow)](https://aplikasi-prediksi-nilai-siswa.streamlit.app/)
 
-[Machine Learning](https://colab.research.google.com/drive/1ZtjwKgPFdE6cZ7iPvKhF3kLMKFEpIRC_?usp=sharing)
+[Paper]()
 
-[Deep Learning](https://colab.research.google.com/drive/1P_c-LwpLDDR5-cfjo8N1zliXrdzly8hS?usp=sharing)
+[Machine Learning](https://colab.research.google.com/drive/1ZtjwKgPFdE6cZ7iPvKhF3kLMKFEpIRC_?usp=sharing) - [Deep Learning](https://colab.research.google.com/drive/1P_c-LwpLDDR5-cfjo8N1zliXrdzly8hS?usp=sharing)
 # Sistem Prediksi Nilai Akademik 💡
 
 Proyek ini bertujuan untuk mengatasi tantangan prediktabilitas akademik dengan menyediakan Sistem Prediksi Nilai Akademik. Menggunakan total enam algoritma (LSTM, CNN, DNN, Random Forest, Decision Tree, Linear Regression) untuk membandingkan hasil prediksi. Menyediakan perhitungan real-time dan akurat melalui semua modelnya.
@@ -24,6 +24,9 @@ Proyek ini bertindak sebagai alat modern untuk diperlihatkan kepada siswa *fores
 - [Machine Learning](https://scikit-learn.org/stable/)
 - [Streamlit](https://streamlit.io/)
 - [Dataset](student_habits_performance.csv)
+
+## Paper
+
 
 ## Team Kami
 - Ismail Muhammad Ahmadi (1227050062)
