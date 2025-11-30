@@ -45,7 +45,7 @@ FEATURES_USED = [
 
 # Path files dan Konfigurasi
 ML_PATHS = {
-    "Random Forest": 'https://github.com/nadqz/proyek_prediksi_siswa/blob/main/ML_MODELS/random_forest_model.pkl',
+    "Random Forest": 'ML_MODELS/random_forest_model1.pkl',
     "Decision Tree": 'ML_MODELS/decision_tree_model.pkl',
     "Linear Regression": 'ML_MODELS/linear_regression_model.pkl'
 }
