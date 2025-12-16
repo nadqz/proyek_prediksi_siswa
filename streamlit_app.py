@@ -130,9 +130,15 @@ def predict_score(model_name, model, input_df_mentah, X_scaled):
     
     # 3. Ambil nilai prediksi
     if model_name in DL_PATHS:
-        return float(prediction[0][0]) 
+        raw_prediction = float(prediction[0][0]) 
     else:
-        return float(prediction[0])  
+        raw_prediction = float(prediction[0])
+    
+    # 4. Terapkan Clamping/Pembatasan Logis
+    # Nilai tidak boleh di bawah 0 dan tidak boleh di atas 100
+    final_prediction = max(0.0, min(100.0, raw_prediction)) 
+    
+    return final_prediction  
 
 # ==============================================================================
 # 3. NAVIGASI STREAMLIT DAN HALAMAN
